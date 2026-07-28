@@ -405,14 +405,14 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
         res = reinit_features(res, start = start, force_reoriented=force_reoriented)
     return res
     
-def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=2):
+def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=2, force_reoriented=False, partition="UNA"):
     """
     Descripton:
         Use PyVAMR's powerful GenBank parser to reorganize the GenBank 
         and generate a new GenBank file.
     
     Parameters：
-        file: {str} one genbankfile or NCBI accession ID.
+        file: {str} a genbankfile or NCBI accession ID.
         tabe: {int} codon tables. such as 1-6, 9-16, 21-33.
         start: {None, str} initial feature, such as, ND1, ND2, ND3, ND4, ND4L, ND5, ND6,
                      COX1, COX2, COX3, ATPase6, ATPase8, Cytb, tRNA-His, tRNA-Pro,
@@ -421,6 +421,9 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
                      tRNA-Asn, tRNA-Leu, tRNA-Glu, tRNA-Val, tRNA-Cys, tRNA-Ser,
                      12S rRNA, 16S rRNA, D-loop. default=None.
         output: {str} a path of genbank output file.
+        partition: {str} a data file division. PRI: primate, ROD: rodent, MAM: mammal, VRT: vertebrate, INV: invertebrate,
+                    PLN: plant, BCT: bacterial, VRL: viral, PHG: bacteriophage, SYN: synthetic,
+                    UNA: unannotated, ENV: environmental sample.
     """
     product = {'ND1': 'NADH dehydrogenase subunit 1',
                'ND2': 'NADH dehydrogenase subunit 2',
@@ -467,7 +470,7 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
             formatted_lines.append(f"{line_start:>9d} {grouped_line}")    
         return '\n'.join(formatted_lines)
 
-    features =  get_features(file, isfilename2species=isfilename2species, start=start)
+    features =  get_features(file, isfilename2species=isfilename2species, start=start, force_reoriented=force_reoriented)
     
     features_tmp = []
     tmp = []
@@ -485,7 +488,7 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
     
     #print(features)
     
-    gb_text = f"""LOCUS       {organism.replace(' ', '_')}                {genome_len} bp    DNA     {features[0].topology}     {time.strftime("%d-%b-%Y", time.localtime()).upper()}
+    gb_text = f"""LOCUS       {organism.replace(' ', '_')}                {genome_len} bp    DNA     {features[0].topology}     ​​{partition} {time.strftime("%d-%b-%Y", time.localtime()).upper()}
 DEFINITION  .
 ACCESSION   .
 VERSION     .
