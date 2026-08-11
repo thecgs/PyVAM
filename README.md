@@ -1,5 +1,5 @@
 # PyVAM
-A Python package for visualizing animal mitochondrial.
+A Python package for visualizing animal mitogenomes.
 
 ## Installation
 
@@ -1315,6 +1315,7 @@ ORIGIN
 //
 </code></pre> 
 </details>
+
 
 
 
