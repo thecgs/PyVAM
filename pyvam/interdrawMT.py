@@ -165,7 +165,9 @@ class InteractiveMTVisualizer:
                                               species_label_color='black',
                                               add_id=False,
                                               editable=False,
-                                              force_reoriented=False):
+                                              force_reoriented=False,
+                                              remove_NCR = False,
+                                              ):
         """
         Descripton:
             The order of mitochondrial genes is not depicted in proportion to their gene size.
@@ -192,6 +194,7 @@ class InteractiveMTVisualizer:
             add_id: {bool} Species add to accession id from NCBI.
             editable: {bool} Make HTML files editable.
             force_reoriented: {bool} force-reoriendted linear mtgenome.
+            remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
         """
         color2groups = self._get_colors_group(colors)
         tmp_groups = set()
@@ -207,6 +210,8 @@ class InteractiveMTVisualizer:
         genomes = []
         for file in reversed(files):
             features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start, force_reoriented=force_reoriented)
+            if remove_NCR:
+                features = [feature for feature in features if feature.name != "D-loop"]
             features = self.remove_join(features)
             genomes.append(features)
         
@@ -451,6 +456,7 @@ class InteractiveMTVisualizer:
                               add_id=False,
                               editable=False,
                               force_reoriented=False,
+                              remove_NCR = False,
                              ):
         """
         Descripton:
@@ -478,6 +484,7 @@ class InteractiveMTVisualizer:
             add_id: {bool} Species add to accession id from NCBI.
             editable: {bool} Make HTML files editable.
             force_reoriented: {bool} force-reoriendted linear mtgenome.
+            remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.     
         """
         
         color2groups = self._get_colors_group(colors)
@@ -501,6 +508,9 @@ class InteractiveMTVisualizer:
         _staus_brake = False
         for i, file in enumerate(files):
             features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start, force_reoriented=force_reoriented)
+            
+            if remove_NCR:
+                features = [feature for feature in features if feature.name != "D-loop"]
             
             #if tidyname:
             #    for j, f in enumerate(features):
@@ -754,8 +764,7 @@ class InteractiveMTVisualizer:
 def draw_linear_MT_nonproportional_interactive(files, output=None, abbr=False, isfilename2species=False,
                                                colors="mitofish", gene_label_size=9, gene_label_color='black',
                                                show_legend=True,
-                                               start=None, species_label_size=12, species_label_color='black', add_id=False, editable=False,
-                                               force_reoriented=False):
+                                               start=None, species_label_size=12, species_label_color='black', add_id=False, editable=False, force_reoriented=False, remove_NCR = False):
     """
     Descripton:
         The order of mitochondrial genes is not depicted in proportion to their gene size.
@@ -782,6 +791,7 @@ def draw_linear_MT_nonproportional_interactive(files, output=None, abbr=False, i
         add_id: {bool} Species add to accession id from NCBI.
         editable: {bool} Make HTML files editable.
         force_reoriented: {bool} force-reoriendted linear mtgenome.
+        remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation. 
     """
     return InteractiveMTVisualizer().draw_linear_MT_nonproportional_plotly(files=files,
                                                                            output=output,
@@ -796,7 +806,8 @@ def draw_linear_MT_nonproportional_interactive(files, output=None, abbr=False, i
                                                                            species_label_color=species_label_color,
                                                                            add_id=add_id,
                                                                            editable=editable,
-                                                                           force_reoriented=force_reoriented)
+                                                                           force_reoriented=force_reoriented,
+                                                                           remove_NCR =remove_NCR)
 
 def draw_linear_MT_interactive(files, output=None,
                                abbr=False,
@@ -812,7 +823,8 @@ def draw_linear_MT_interactive(files, output=None,
                                tidyname=False,
                                add_id=False,
                                editable=False,
-                               force_reoriented=False):
+                               force_reoriented=False,
+                               remove_NCR = False):
     """
     Descripton:
         The order of mitochondrial genes, arranged in proportion to their size.
@@ -839,6 +851,7 @@ def draw_linear_MT_interactive(files, output=None,
         add_id: {bool} Species add to accession id from NCBI.
         editable: {bool} Make HTML files editable.
         force_reoriented: {bool} force-reoriendted linear mtgenome.
+        remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
     """
     return InteractiveMTVisualizer().draw_linear_MT_plotly(files=files,
                                                            output=output,
@@ -855,4 +868,5 @@ def draw_linear_MT_interactive(files, output=None,
                                                            tidyname=tidyname,
                                                            add_id=add_id,
                                                            editable=editable,
-                                                           force_reoriented=force_reoriented)
+                                                           force_reoriented=force_reoriented,
+                                                           remove_NCR =remove_NCR)

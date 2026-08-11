@@ -104,7 +104,8 @@ def draw_circos_MT(file,
                    figsize=(10,10),
                    tidyname=False,
                    add_id = False,
-                   dpi = 300
+                   dpi = 300,
+                   remove_NCR = False,
                   ):
     """
     Descripton:
@@ -143,6 +144,7 @@ def draw_circos_MT(file,
         tidyname: {bool} tidy gene name.
         add_id: {bool} Species add to accession id from NCBI.
         dpi: {int} dpi value. the resolution in dots per inch.
+        remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
     """
     add_other_genes = False
     if axes==None:
@@ -159,6 +161,8 @@ def draw_circos_MT(file,
     ax.set_xticklabels([])
     
     features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start)
+    if remove_NCR:
+        features = [feature for feature in features if feature.name != "D-loop"]
     add_other_genes = is_othergenes(features)
     try:
         #str(features[0].mtgenome)  # UndefinedSequenceError
@@ -386,6 +390,7 @@ def draw_linear_MT(files,
                    add_id = False,
                    dpi = 300,
                    force_reoriented=True,
+                   remove_NCR = False,
                   ):
     
     """
@@ -424,6 +429,7 @@ def draw_linear_MT(files,
         add_id: {bool} Species add to accession id from NCBI.
         dpi: {int} dpi value. the resolution in dots per inch.
         force_reoriented: {bool} force-reoriendted linear mtgenome.
+        remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
     """    
     
     add_other_genes = False
@@ -435,6 +441,8 @@ def draw_linear_MT(files,
     genomes = []
     for file in files:
         features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start, force_reoriented=force_reoriented)
+        if remove_NCR:
+            features = [feature for feature in features if feature.name != "D-loop"]
         
         add_other_genes = is_othergenes(features)
         if tidyname:
@@ -566,7 +574,8 @@ def draw_linear_MT_nonproportional(files,
                                    axes=None,
                                    add_id = False,
                                    dpi = 300,
-                                   force_reoriented=False
+                                   force_reoriented=False,
+                                   remove_NCR = False,
                                   ):
     """
     Descripton:
@@ -597,6 +606,7 @@ def draw_linear_MT_nonproportional(files,
         add_id: {bool} Species add to accession id from NCBI.
         dpi: {int} dpi value. the resolution in dots per inch.
         force_reoriented: {bool} force-reoriendted linear mtgenome.
+        remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
     """
     add_other_genes = False
     if not (isinstance(files, list)) and (not isinstance(files, tuple)):
@@ -605,6 +615,8 @@ def draw_linear_MT_nonproportional(files,
     genomes = []
     for file in reversed(files):
         features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start, force_reoriented=force_reoriented)
+        if remove_NCR:
+            features = [feature for feature in features if feature.name != "D-loop"]
         features = remove_join(features)
         genomes.append(features)
         add_other_genes = is_othergenes(features)

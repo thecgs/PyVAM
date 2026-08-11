@@ -1,9 +1,9 @@
-# PyVAMR
-A Python package for visualizing animal mitochondrial rearrangements.
+# PyVAM
+A Python package for visualizing animal mitochondrial.
 
 ## Installation
 
-```pip install git+https://github.com/thecgs/PyVAMR.git```
+```pip install git+https://github.com/thecgs/PyVAM.git```
 
 ## Usage
 
@@ -12,9 +12,9 @@ A Python package for visualizing animal mitochondrial rearrangements.
 You can easily draw a circular mitogenome map in human, just like this, using the [OGDRAW](https://chlorobox.mpimp-golm.mpg.de/OGDraw.html) theme.
 
 ```python
-import pyvamr
+import pyvam
 
-fig, ax = pyvamr.draw_circos_MT("NC_012920.1", colors="OGDRAW", output="./doc/Fig.1.png", dpi=72)
+fig, ax = pyvam.draw_circos_MT("NC_012920.1", colors="OGDRAW", output="./doc/Fig.1.png", dpi=72)
 ```
 
 The result is shown in the figure below:
@@ -26,9 +26,9 @@ The result is shown in the figure below:
 ### Parameter Details:
 
 ```python
-help(pyvamr.draw_circos_MT)
+help(pyvam.draw_circos_MT)
 
-Help on function draw_circos_MT in module pyvamr.drawMT:
+Help on function draw_circos_MT in module pyvam.drawMT:
 
 draw_circos_MT(file, output=None, abbr=False, isfilename2species=False, colors='mitofish', radius=25, show_gene_label=True, gene_label_fontsize=7, gene_label_inner=False, show_info=True, info_fontsize=15, show_legend=True, legend_size=6, legend_postion=(1, -0.1), show_GC_circos=True, GC_circos_height=0.3, GC_circos_color='grey', GC_circos_bin=50, GC_circos_step=50, start='tRNA-Phe', axes=None, direction=-1, figsize=(10, 10), tidyname=False, add_id=False, dpi=300)
     Descripton:
@@ -76,9 +76,9 @@ draw_circos_MT(file, output=None, abbr=False, isfilename2species=False, colors='
 For mitochondrial genomes that are not closed circles (e.g., due to incomplete assembly), the circular genome map displays a gap at the upper left.
 
 ```python
-import pyvamr
+import pyvam
 
-fig, ax = pyvamr.draw_circos_MT("MK804157", colors="OGDRAW", output="./doc/Fig.2.png", dpi=72)
+fig, ax = pyvam.draw_circos_MT("MK804157", colors="OGDRAW", output="./doc/Fig.2.png", dpi=72)
 ```
 
 ![](doc/Fig.2.png#pic_center)
@@ -90,18 +90,18 @@ fig, ax = pyvamr.draw_circos_MT("MK804157", colors="OGDRAW", output="./doc/Fig.2
 According to a study by [Wang et al.](https://link.springer.com/article/10.1186/s40850-025-00239-x), compared with the ancestor of Stylommatophora, the mitochondrial genes of *M. pictum* exhibited multiple rearrangement events, while the mitochondrial genes of *S. arundinetorum* showed only minor differences. You can draw the two species separately for comparison (Fig. 3 A–B), or you can draw them together on the same figure, and using the [MitoFish](https://mitofish.aori.u-tokyo.ac.jp/annotation/draw) theme.
 
 ```python
-import pyvamr
+import pyvam
 import  matplotlib.pyplot as plt
 
 fig, axs = plt.subplots(1, 3, figsize=(20, 20/3), subplot_kw={'projection':'polar'})
 plt.subplots_adjust(wspace=0.3)
 
-pyvamr.draw_circos_MT(file="OP311642", colors="MitoFish", radius=20, gene_label_size=5, gene_label_inner=False, show_info=True, show_legend=False, axes=axs[0], info_fontsize=6)
-pyvamr.draw_circos_MT(file="OP289102", colors="MitoFish", radius=20, gene_label_size=5, gene_label_inner=False, show_info=True, show_legend=False, axes=axs[1], info_fontsize=6)
-pyvamr.draw_circos_MT(file="OP311642", colors="MitoFish", radius=20, gene_label_size=5, gene_label_inner=False, show_info=False,show_legend=False, show_GC_circos=False, axes=axs[2])
-pyvamr.draw_circos_MT(file="OP289102", colors="MitoFish", radius=12, gene_label_size=4, show_gene_label=True,   show_info=False,show_legend=False, show_GC_circos=False, axes=axs[2])
+pyvam.draw_circos_MT(file="OP311642", colors="MitoFish", radius=20, gene_label_size=5, gene_label_inner=False, show_info=True, show_legend=False, axes=axs[0], info_fontsize=6)
+pyvam.draw_circos_MT(file="OP289102", colors="MitoFish", radius=20, gene_label_size=5, gene_label_inner=False, show_info=True, show_legend=False, axes=axs[1], info_fontsize=6)
+pyvam.draw_circos_MT(file="OP311642", colors="MitoFish", radius=20, gene_label_size=5, gene_label_inner=False, show_info=False,show_legend=False, show_GC_circos=False, axes=axs[2])
+pyvam.draw_circos_MT(file="OP289102", colors="MitoFish", radius=12, gene_label_size=4, show_gene_label=True,   show_info=False,show_legend=False, show_GC_circos=False, axes=axs[2])
 
-pyvamr.add_tag(axs=axs, by_row=True)
+pyvam.add_tag(axs=axs, by_row=True)
 
 axs[2].text(0.5, 0.5, s="Outer circle: Meghimatium pictum\nInner circle: Succinea arundinetorum", size=6, ha='center', va='center', style='italic')
 
@@ -119,9 +119,9 @@ The result is shown in the figure below:
 Comparing the mitochondrial genomes of multiple species, Circos plots are clearly not the best choice; Below, we use a linear plot to visualize gene rearrangements, and open the circular mitochondrial genome at the specified site (such as, ND1).  [Source of demo data](https://academic.oup.com/isd/article/3/6/12/5686061)
 
 ```python
-import pyvamr
+import pyvam
 
-pyvamr.draw_linear_MT_nonproportional(files=["MK804148", "MK804158","MK804149", "MK804157"], 
+pyvam.draw_linear_MT_nonproportional(files=["MK804148", "MK804158","MK804149", "MK804157"], 
                       start='ND1', add_id=True, dpi=72, force_reoriented=True,
                       output="./doc/Fig.4.png")
 ```
@@ -137,9 +137,9 @@ The result is shown in the figure below:
 As shown in Fig.4, the genes are not drawn to scale. Below is a scaled drawing of the mitochondrial structure.
 
 ```python
-import pyvamr
+import pyvam
 
-pyvamr.draw_linear_MT(files=["MK804148", "MK804158","MK804149", "MK804157"], 
+pyvam.draw_linear_MT(files=["MK804148", "MK804158","MK804149", "MK804157"], 
                       start='ND1', add_id=True, dpi=72, force_reoriented=True,
                       output="./doc/Fig.5.png")
 ```
@@ -152,28 +152,28 @@ The result is shown in the figure below:
 
 ### Example 6：
 
-When analyzing large-scale mitochondrial data—including gene overlaps and the identification of intergenic regions—it is necessary to dynamically display the locations of genes. Therefore, pyVAMR can also generate dynamic visualizations using Plotly.
+When analyzing large-scale mitochondrial data—including gene overlaps and the identification of intergenic regions—it is necessary to dynamically display the locations of genes. Therefore, pyVAM can also generate dynamic visualizations using Plotly.
 
 For nonproportional:
 
 ```python
-import pyvamr
+import pyvam
 
-pyvamr.draw_linear_MT_nonproportional_interactive(files=["MK804148", "MK804158", "MK804149", "MK804157"],
+pyvam.draw_linear_MT_nonproportional_interactive(files=["MK804148", "MK804158", "MK804149", "MK804157"],
                                                   start='COX1', add_id=True, force_reoriented=True,output="./doc/Fig.6.html")
 ```
 
-[Veiw Fig.6.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAMR/blob/main/doc/Fig.6.html)
+[Veiw Fig.6.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/doc/Fig.6.html)
 
 ```python
-import pyvamr
+import pyvam
 
-pyvamr.draw_linear_MT_interactive(files=["MK804148", "MK804158","MK804149", "MK804157"], 
+pyvam.draw_linear_MT_interactive(files=["MK804148", "MK804158","MK804149", "MK804157"], 
                                   start='COX1', add_id=True, force_reoriented=True,
                                   output="./doc/Fig.7.html")
 ```
 
-[Veiw Fig.7.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAMR/blob/main/doc/Fig.7.html)
+[Veiw Fig.7.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/doc/Fig.7.html)
 
 ## Themes
 
@@ -182,7 +182,7 @@ pyvamr.draw_linear_MT_interactive(files=["MK804148", "MK804158","MK804149", "MK8
 It comes with 10 built-in themes, including Chen, Tan, OGDRAW, MitoFish, MitoFish1, MitoZ, Chloroplot, Grey, IGV, gggenes.
 
 ```python
-import pyvamr
+import pyvam
 import matplotlib.pyplot as plt
 
 fig, axs = plt.subplots(2, 5, figsize=(15, 5), subplot_kw={'projection':'polar'})
@@ -190,7 +190,7 @@ axes = [a for ax in axs for a in ax]
 themes = ["Chen", "Tan", "OGDRAW", "MitoFish", "MitoFish1", "MitoZ", "Chloroplot", "Grey", "IGV", "gggenes"]
 
 for theme, ax in zip(themes, axes):
-    pyvamr.draw_circos_MT("NC_012920.1", colors=theme, radius=12, show_gene_label=False, 
+    pyvam.draw_circos_MT("NC_012920.1", colors=theme, radius=12, show_gene_label=False, 
                               show_info=False, show_legend=False, show_GC_circos=False, axes=ax)
     ax.text(0.5, 0.5, s=theme, ha='center', va='center')
     
@@ -249,13 +249,13 @@ MTColors_by_Set3 = {'source':"#000000",
 
 ## Tidy GenBank
 
-If you're not particularly fond of the PyVAMR visualization but still want to use PyVAMR's ability to specify the starting point of a GenBank file, you can use this function, which handles the conversion of feature coordinates and the rotation of the mtgenome.
+If you're not particularly fond of the PyVAM visualization but still want to use PyVAM's ability to specify the starting point of a GenBank file, you can use this function, which handles the conversion of feature coordinates and the rotation of the mtgenome.
 
 ```python
 # For the MZ387761, the default starting point is the D-loop.
 
-import pyvamr
-pyvamr.tidy_genbank("MZ387761", 
+import pyvam
+pyvam.tidy_genbank("MZ387761", 
                     start=None,  # No mitochondrial gene is specified as the starting point.
                     table=2,
                     #output="new_genbank_file.gb"
@@ -265,7 +265,7 @@ pyvamr.tidy_genbank("MZ387761",
 <details>
     <summary>Genbank file of D-loop starting point </summary>
     <pre><code>
-LOCUS       Homo_sapiens                16581 bp    DNA     circular     08-APR-2026
+LOCUS       Homo_sapiens                16581 bp    DNA     circular     PRI 08-APR-2026
 DEFINITION  .
 ACCESSION   .
 VERSION     .
@@ -783,11 +783,12 @@ ORIGIN
 </code></pre> 
 </details>
 
+
 ```python
 # For MZ387761, specify tRNA-Phe as the starting point.
 
-import pyvamr
-pyvamr.tidy_genbank("MZ387761", 
+import pyvam
+pyvam.tidy_genbank("MZ387761", 
                     start='tRNA-Phe',
                     table=2,
                     #output="new_genbank_file.gb"
@@ -797,7 +798,7 @@ pyvamr.tidy_genbank("MZ387761",
 <details>
     <summary> Genbank of tRNA-Phe starting point </summary>
     <pre><code>
-LOCUS       Homo_sapiens                16581 bp    DNA     circular     08-APR-2026
+LOCUS       Homo_sapiens                16581 bp    DNA     circular     PRI 08-APR-2026
 DEFINITION  .
 ACCESSION   .
 VERSION     .

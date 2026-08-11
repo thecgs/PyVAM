@@ -11,7 +11,7 @@ from .config import CommonNamesDict, MTColors
 from Bio.SeqFeature import CompoundLocation, SimpleLocation
 
 class Feature:
-    def __init__(self, name, location, type, color, join=None, mtgenome=None, accession=None, file=None, topology=None):
+    def __init__(self, name, location, type, color, join=None, mtgenome=None, accession=None, file=None, topology=None, partition=None):
         self.name = name
         self.location = location
         self.type = type
@@ -21,6 +21,8 @@ class Feature:
         self.accession = accession
         self.file = file
         self.topology = topology
+        self.partition = partition
+        
     def __repr__(self):
             return str(self.name)
     def __str__(self):
@@ -38,13 +40,6 @@ def search_name(gene_name):
         return gene_name
     else:
         return CommonNamesDict.get(gene_name)
-
-#def is_repeat(features, location):
-#    status = False
-#    for i in features:
-#        if i.location == location:
-#            status = True
-#    return status
 
 
 def is_repeat(features, location, name=None):
@@ -87,9 +82,7 @@ def get_species_name(string, abbr=True):
 
 def reinit_features(features, start = "tRNA-Phe", force_reoriented=False):
     logger = logging.getLogger(__name__) 
-    logger.setLevel(logging.DEBUG)
-    #logging.basicConfig(level=logging.DEBUG)
-                                
+    logger.setLevel(logging.DEBUG)                  
     features_new = [features[0]]
     
     value = None
@@ -125,7 +118,7 @@ def reinit_features(features, start = "tRNA-Phe", force_reoriented=False):
             
     tmp = [features_new[0]]
     tmp.extend(sorted(features_new[1:], key=lambda x:x.location.start))
-    f = Feature(features[0].name, features[0].location, features[0].type, features[0].color, features[0].join, rotate_seq(features[0].mtgenome, value), accession=features[0].accession, file=features[0].file, topology=features[0].topology)
+    f = Feature(features[0].name, features[0].location, features[0].type, features[0].color, features[0].join, rotate_seq(features[0].mtgenome, value), accession=features[0].accession, file=features[0].file, topology=features[0].topology, partition=features[0].partition)
     features_new = [f]
     index = 0
     for feature in tmp[1:]:
@@ -188,6 +181,11 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
         
     #print(handle)
     for record in handle:
+        if 'data_file_division' in record.annotations:
+            partition = record.annotations['data_file_division']
+        else:
+            partition = "UNA"
+            
         topology = record.annotations['topology'].lower()
         mtgenome = record.seq.upper()
         accession = record.id
@@ -256,7 +254,7 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
                     
                 species_name = get_species_name(species_name, abbr=abbr)
                 features.append(Feature(name=species_name, location=i.location, type=i.type, color=colors.get('source', colors.get('Other genes', 'gray')),
-                                        mtgenome=mtgenome, accession=accession, file=file, topology=topology))
+                                        mtgenome=mtgenome, accession=accession, file=file, topology=topology, partition=partition))
 
             elif i.type in ['rRNA', 'tRNA', 'D_loop', 'D-loop']:
                 if gene_name in ['tRNA-His', 'tRNA-Pro', 'tRNA-Thr', 'tRNA-Trp', 'tRNA-Met', 'tRNA-Asp', 'tRNA-Ala', 'tRNA-Gln',
@@ -405,7 +403,7 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
         res = reinit_features(res, start = start, force_reoriented=force_reoriented)
     return res
     
-def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=2, force_reoriented=False, partition="UNA"):
+def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=2, force_reoriented=False, partition="inherit"):
     """
     Descripton:
         Use PyVAMR's powerful GenBank parser to reorganize the GenBank 
@@ -421,7 +419,7 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
                      tRNA-Asn, tRNA-Leu, tRNA-Glu, tRNA-Val, tRNA-Cys, tRNA-Ser,
                      12S rRNA, 16S rRNA, D-loop. default=None.
         output: {str} a path of genbank output file.
-        partition: {str} a data file division. PRI: primate, ROD: rodent, MAM: mammal, VRT: vertebrate, INV: invertebrate,
+        partition: {str} a data file division. inherit: inherit, PRI: primate, ROD: rodent, MAM: mammal, VRT: vertebrate, INV: invertebrate,
                     PLN: plant, BCT: bacterial, VRL: viral, PHG: bacteriophage, SYN: synthetic,
                     UNA: unannotated, ENV: environmental sample.
     """
@@ -488,6 +486,9 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
     
     #print(features)
     
+    if partition == "inherit":
+        partition = features[0].partition
+        
     gb_text = f"""LOCUS       {organism.replace(' ', '_')}                {genome_len} bp    DNA     {features[0].topology}     ​​{partition} {time.strftime("%d-%b-%Y", time.localtime()).upper()}
 DEFINITION  .
 ACCESSION   .
@@ -498,8 +499,7 @@ SOURCE      mitochondrion {organism}
             Unclassified.
 REFERENCE   1  (bases 1 to {genome_len})
   AUTHORS   Chen, G.
-  TITLE     PyVAMR: A Python package for visualizing 
-            animal mitochondrial rearrangements.
+  TITLE     PyVAM: A Python package for visualizing animal mitochondrial.
   JOURNAL   Unpublished
   TITLE     Direct Submission
 FEATURES             Location/Qualifiers
