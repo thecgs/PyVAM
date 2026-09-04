@@ -1,15 +1,90 @@
 # PyVAM
-A Python package for visualizing animal mitogenomes.
+
+[![CI](https://github.com/thecgs/PyVAM/actions/workflows/ci.yml/badge.svg)](https://github.com/thecgs/PyVAM/actions/workflows/ci.yml)
+
+PyVAM is a Python package for parsing, standardizing, and visualizing animal mitochondrial genomes from local GenBank files or NCBI accession IDs.
+
+It provides circular maps, proportional and gene-order linear comparisons, interactive Plotly figures, and GenBank reorientation at a named feature.
+
+## Contents
+
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Input and topology](#input-and-topology)
+- [Core functions](#core-functions)
+- [Examples](#examples)
+- [Themes](#themes)
+- [Tidy GenBank](#tidy-genbank)
+- [Testing](#testing)
 
 ## Installation
 
-```pip install git+https://github.com/thecgs/PyVAM.git```
+```bash
+python -m pip install git+https://github.com/thecgs/PyVAM.git
+```
 
-## Usage
+For development, install the checkout in editable mode:
 
-### Example 1:
+```bash
+python -m pip install -e . pytest
+```
 
-You can easily draw a circular mitogenome map in human, just like this, using the [OGDRAW](https://chlorobox.mpimp-golm.mpg.de/OGDraw.html) theme.
+## Quick start
+
+```python
+import pyvam
+
+fig, ax = pyvam.draw_circos_MT(
+    "mitogenome.gbk",       # local GenBank file or NCBI accession
+    colors="OGDRAW",
+    output="mitogenome.png",
+)
+```
+
+For a comparison of gene order across genomes:
+
+```python
+pyvam.draw_linear_MT_nonproportional(
+    ["species_1.gbk", "species_2.gbk"],
+    start="ND1",
+    force_reoriented=True,
+    output="gene_order.png",
+)
+```
+
+## Input and topology
+
+PyVAM accepts a path-like local GenBank file or an NCBI nucleotide accession. Input files can be circular or linear. If a GenBank record does not contain a valid topology annotation, PyVAM emits a warning and uses `default_topology`:
+
+```python
+pyvam.draw_linear_MT(
+    "partial_assembly.gbk",
+    default_topology="linear",
+    output="partial_assembly.png",
+)
+```
+
+`default_topology` accepts `"circular"` (the default) or `"linear"`. A linear topology is displayed with a break marker rather than being silently closed into a circle.
+
+## Core functions
+
+| Function | Purpose |
+| --- | --- |
+| `get_features()` | Parse and normalize GenBank annotations into PyVAM feature objects. |
+| `draw_circos_MT()` | Draw a circular mitochondrial map. |
+| `draw_linear_MT()` | Draw a proportional linear comparison. |
+| `draw_linear_MT_nonproportional()` | Compare gene order without scaling each gene to its length. |
+| `draw_linear_MT_interactive()` | Produce an interactive proportional Plotly figure. |
+| `draw_linear_MT_nonproportional_interactive()` | Produce an interactive gene-order Plotly figure. |
+| `tidy_genbank()` | Reorient and export a normalized GenBank record. |
+
+Common options include `colors`, `start`, `force_reoriented`, `remove_NCR`, `default_topology`, `output`, and `dpi`. Run `help(pyvam.draw_circos_MT)` or `help(pyvam.tidy_genbank)` for the full signature.
+
+## Examples
+
+### Circular map of *Homo sapiens*
+
+Draw a circular map of *Homo sapiens* using the [OGDRAW](https://chlorobox.mpimp-golm.mpg.de/OGDraw.html) theme.
 
 ```python
 import pyvam
@@ -17,65 +92,11 @@ import pyvam
 fig, ax = pyvam.draw_circos_MT("NC_012920.1", colors="OGDRAW", output="./doc/Fig.1.png", dpi=72)
 ```
 
-The result is shown in the figure below:
-
 ![](doc/Fig.1.png#pic_center)
 
-<center>Fig.1 A circular mitogenome map in human</center>
+<p align="center"><em>Fig. 1. Circular mitochondrial map of Homo sapiens.</em></p>
 
-### Parameter Details:
-
-```python
-help(pyvam.draw_circos_MT)
-
-Help on function draw_circos_MT in module pyvam.drawMT:
-
-draw_circos_MT(file, output=None, abbr=False, isfilename2species=False, colors='mitofish', radius=25, show_gene_label=True, gene_label_size=7, gene_label_inner=False, show_info=True, info_fontsize=15, show_legend=True, legend_size=6, legend_postion=(1, -0.1), show_GC_circos=True, GC_circos_height=0.3, GC_circos_color='grey', GC_circos_bin=50, GC_circos_step=50, start=None, axes=None, direction=-1, figsize=(10, 10), tidyname=False, add_id=False, dpi=300, remove_NCR=False, default_topology='circular')
-    Descripton:
-        Draw a mitochondrial circos.
-        
-    Parameters：
-        file: {str} a genbankfile or NCBI accession ID.
-        output: {str} a path of figure save.
-        abbr: {bool} whether to abbreviate species names.
-        isfilename2species: {bool} whether filename convert to species.
-        colors: {str, dict} themes such as, Chen, Tan, ogdraw, mitofish,
-                            mitofish1, mitoz,  gggenes, chloroplot, grey, igv.
-        radius: {int} radius of the circle.
-        show_gene_label: {bool} show gene label.
-        gene_label_size: {int} gene label fontsize.
-        gene_label_inner: {bool} whether the control gene label is inner.
-        show_info: {bool} show species name, GC context, genome length, and gene count information.
-        info_fontsize: {int} information fontsize.
-        show_legend: {bool} show fig legend.
-        legend_size: {int} legend size.
-        legend_postion: {tuple} such as (x, y), x=0-1, y=0-1.
-        show_GC_circos: {bool} show GC circos.
-        GC_circos_height {0-1} height of GC_circos.
-        GC_circos_color {color} color of GC_circos.
-        GC_circos_step {int} step of GC_circos (bp).
-        GC_circos_bin {int} bin of GC_circos (bp).
-        start: {None, str} initial feature, such as, ND1, ND2, ND3, ND4, ND4L, ND5, ND6,
-                     COX1, COX2, COX3, ATPase6, ATPase8, Cytb, tRNA-His, tRNA-Pro,
-                     tRNA-Thr, tRNA-Trp, tRNA-Met, tRNA-Asp, tRNA-Ala, tRNA-Gln,
-                     tRNA-Ile, tRNA-Arg, tRNA-Tyr, tRNA-Phe, tRNA-Lys, tRNA-Gly,
-                     tRNA-Asn, tRNA-Leu, tRNA-Glu, tRNA-Val, tRNA-Cys, tRNA-Ser,
-                     12S rRNA, 16S rRNA, D-loop.
-        axes: {matplotlib.projections.polar.PolarAxes}
-        figsize: {tuple} fig of size.
-        direction: {1, -1} clockwise: -1, anticlockwise: 1
-        tidyname: {bool} tidy gene name.
-        add_id: {bool} Species add to accession id from NCBI.
-        dpi: {int} dpi value. the resolution in dots per inch.
-        remove_NCR: {bool} do not display D-loop.
-        default_topology: {str} topology to assume only when the input GenBank
-            record does not declare one. Accepts "circular" (default) or
-            "linear"; an assumption is reported as a warning.
-```
-
-
-
-### Example 2:
+### Partial mitochondrial assembly
 
 For mitochondrial genomes that are not closed circles (e.g., due to incomplete assembly), the circular genome map displays a gap at the upper left.
 
@@ -87,11 +108,11 @@ fig, ax = pyvam.draw_circos_MT("MK804157", colors="OGDRAW", output="./doc/Fig.2.
 
 ![](doc/Fig.2.png#pic_center)
 
-<center>Fig.2 A circular mitogenome map in Compsulyx cochereaui</center>
+<p align="center"><em>Fig. 2. Circular mitochondrial map of Compsulyx cochereaui.</em></p>
 
-### Example 3:
+### Comparative circular maps
 
-According to a study by [Wang et al.](https://link.springer.com/article/10.1186/s40850-025-00239-x), compared with the ancestor of Stylommatophora, the mitochondrial genes of *M. pictum* exhibited multiple rearrangement events, while the mitochondrial genes of *S. arundinetorum* showed only minor differences. You can draw the two species separately for comparison (Fig. 3 A–B), or you can draw them together on the same figure, and using the [MitoFish](https://mitofish.aori.u-tokyo.ac.jp/annotation/draw) theme.
+According to a study by [Wang et al.](https://link.springer.com/article/10.1186/s40850-025-00239-x), compared with the ancestor of Stylommatophora, the mitochondrial genes of *Meghimatium pictum* exhibited multiple rearrangement events, whereas those of *Succinea arundinetorum* showed only minor differences. The [MitoFish](https://mitofish.aori.u-tokyo.ac.jp/annotation/draw) theme can be used to compare both genomes in one figure.
 
 ```python
 import pyvam
@@ -116,9 +137,9 @@ The result is shown in the figure below:
 
 ![](doc/Fig.3.png#pic_center)
 
-<center>Fig.3 Three circular mitogenome map in two Stylommatophora species</center>
+<p align="center"><em>Fig. 3. Comparative circular maps of Meghimatium pictum and Succinea arundinetorum.</em></p>
 
-### Example 4:
+### Nonproportional gene-order comparison
 
 Comparing the mitochondrial genomes of multiple species, Circos plots are clearly not the best choice; Below, we use a linear plot to visualize gene rearrangements, and open the circular mitochondrial genome at the specified site (such as, ND1).  [Source of demo data](https://academic.oup.com/isd/article/3/6/12/5686061)
 
@@ -134,9 +155,9 @@ The result is shown in the figure below:
 
 ![](doc/Fig.4.png#pic_center)
 
-<center>Fig.4 Linear plot of nonproportional</center>
+<p align="center"><em>Fig. 4. Nonproportional linear comparison of mitochondrial gene order.</em></p>
 
-### Example 5：
+### Proportional linear comparison
 
 As shown in Fig.4, the genes are not drawn to scale. Below is a scaled drawing of the mitochondrial structure.
 
@@ -152,9 +173,9 @@ The result is shown in the figure below:
 
 ![](doc/Fig.5.png#pic_center)
 
-<center>Fig.5 Linear plot of proportional</center>
+<p align="center"><em>Fig. 5. Proportional linear comparison of mitochondrial gene order.</em></p>
 
-### Example 6：
+### Interactive figures
 
 When analyzing large-scale mitochondrial data—including gene overlaps and the identification of intergenic regions—it is necessary to dynamically display the locations of genes. Therefore, pyVAM can also generate dynamic visualizations using Plotly.
 
@@ -167,7 +188,7 @@ pyvam.draw_linear_MT_nonproportional_interactive(files=["MK804148", "MK804158", 
                                                   start='COX1', add_id=True, force_reoriented=True,output="./doc/Fig.6.html")
 ```
 
-[Veiw Fig.6.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/doc/Fig.6.html)
+[View Fig. 6.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/doc/Fig.6.html)
 
 ```python
 import pyvam
@@ -177,7 +198,7 @@ pyvam.draw_linear_MT_interactive(files=["MK804148", "MK804158","MK804149", "MK80
                                   output="./doc/Fig.7.html")
 ```
 
-[Veiw Fig.7.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/doc/Fig.7.html)
+[View Fig. 7.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/doc/Fig.7.html)
 
 ## Themes
 
@@ -203,11 +224,11 @@ fig.savefig("./doc/Fig.8.png", bbox_inches='tight', dpi=72)
 
 ![](doc/Fig.8.png#pic_center)
 
-<center>Fig.8 10 built-in themes</center>
+<p align="center"><em>Fig. 8. Built-in visualization themes.</em></p>
 
-### Custom colors:
+### Custom colors
 
-You can also customize the color scheme to your liking. like this,
+Pass a dictionary directly to `colors`. Include `source` and `Other genes` to ensure that unrecognized annotations still render predictably.
 
 ```python
 MTColors_by_Set3 = {'source':"#000000",
@@ -249,14 +270,20 @@ MTColors_by_Set3 = {'source':"#000000",
                     'D-loop': '#E5C494',
                     'Other genes': '#B3DE69',
                    }
+
+fig, ax = pyvam.draw_circos_MT(
+    "mitogenome.gbk",
+    colors=MTColors_by_Set3,
+    output="custom_theme.png",
+)
 ```
 
 ## Tidy GenBank
 
-If you're not particularly fond of the PyVAM visualization but still want to use PyVAM's ability to specify the starting point of a GenBank file, you can use this function, which handles the conversion of feature coordinates and the rotation of the mtgenome.
+`tidy_genbank()` rewrites a normalized GenBank record and can rotate a mitochondrial genome so that a selected feature becomes position 1. It is useful when preparing a consistent coordinate system before comparative analysis.
 
 ```python
-# For the MZ387761, the default starting point is the D-loop.
+# For the Homo sapiens accession MZ387761, retain the default D-loop start.
 
 import pyvam
 pyvam.tidy_genbank("MZ387761", 
@@ -787,9 +814,8 @@ ORIGIN
 </code></pre> 
 </details>
 
-
 ```python
-# For MZ387761, specify tRNA-Phe as the starting point.
+# For the Homo sapiens accession MZ387761, use tRNA-Phe as the starting point.
 
 import pyvam
 pyvam.tidy_genbank("MZ387761", 
@@ -1320,8 +1346,13 @@ ORIGIN
 </code></pre> 
 </details>
 
+## Testing
 
+Run the self-contained regression suite from a source checkout:
 
+```bash
+MPLBACKEND=Agg python -m pytest
+```
 
-
+The tests cover topology fallback and validation, multipart CDS export and translation, translation-table selection, custom interactive colors, label colors, and high-level plotting options.
 
