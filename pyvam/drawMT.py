@@ -9,6 +9,7 @@ from matplotlib.patches import Patch, FancyArrow
 from matplotlib.lines import Line2D
 from .parserGB import get_features
 from .config import MTColors_legends, FullName2AbbrName
+from Bio.Seq import UndefinedSequenceError
 
 def rotation_text(theta):
     d =  (theta * 180 / math.pi)
@@ -106,6 +107,7 @@ def draw_circos_MT(file,
                    add_id = False,
                    dpi = 300,
                    remove_NCR = False,
+                   default_topology="circular",
                   ):
     """
     Descripton:
@@ -145,6 +147,7 @@ def draw_circos_MT(file,
         add_id: {bool} Species add to accession id from NCBI.
         dpi: {int} dpi value. the resolution in dots per inch.
         remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
+        default_topology: {str} topology to use when the input record does not declare one.
     """
     add_other_genes = False
     if axes==None:
@@ -160,7 +163,9 @@ def draw_circos_MT(file,
     ax.set_yticklabels([])
     ax.set_xticklabels([])
     
-    features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start)
+    features = get_features(file, abbr=abbr, isfilename2species=isfilename2species,
+                            colors=colors, start=start,
+                            default_topology=default_topology)
     if remove_NCR:
         features = [feature for feature in features if feature.name != "D-loop"]
     add_other_genes = is_othergenes(features)
@@ -173,12 +178,12 @@ def draw_circos_MT(file,
             info = features[0].accession +"; " + features[0].name+f"\n{genome_length} bp\nGC: {GC}%\n{PCG_count} PCGs; {rRNA_count} rRNAs; {tRNA_count} tRNAs"
         else:
             info = features[0].name+f"\n{genome_length} bp\nGC: {GC}%\n{PCG_count} PCGs; {rRNA_count} rRNAs; {tRNA_count} tRNAs"
-    except:
+    except (UndefinedSequenceError, AttributeError, TypeError):
         #show_info = False
         show_GC_circos = False
         logger = logging.getLogger(__name__) 
         logger.setLevel(logging.DEBUG)
-        logger.warning(features[0].file+" Sequence content is undefined.")
+        logger.warning("%s Sequence content is undefined.", features[0].file)
         tRNA_count, rRNA_count, PCG_count = stat_features(features)
         if add_id:
             info = features[0].accession +"; " + features[0].name+f"\n{PCG_count} PCGs; {rRNA_count} rRNAs; {tRNA_count} tRNAs"
@@ -199,7 +204,10 @@ def draw_circos_MT(file,
     if features[0].topology == 'linear':
         logger = logging.getLogger(__name__) 
         logger.setLevel(logging.DEBUG)
-        logger.warning(features[0].file+" is linear topology. Therefore, the rotation operation was not performed.")
+        logger.warning(
+            "%s is linear topology. Therefore, the rotation operation was not performed.",
+            features[0].file,
+        )
         scale_factor = (1.9 * math.pi) / (int(features[0].location.end) + 1)
         ax.set_thetamin(0)
         ax.set_thetamax(342)        
@@ -243,7 +251,7 @@ def draw_circos_MT(file,
         legend_elements = MTColors_legends['MITOFISH']
         ncol = 1
     elif isinstance(colors, str):
-        legend_elements = MTColors_legends.get(colors.upper(), 'MITOFISH')
+        legend_elements = MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH'])
         if colors.upper() == "IGV":
             ncol = 4
         else:
@@ -326,6 +334,10 @@ def _get_mt_rect_ax(ax, features, show_info=True, info_fontsize=10, show_gene_la
                 rect2 = plt.Rectangle(xy=(x+7, 0.42), width=box_width-16, height=linewidth+0.05, edgecolor=None, facecolor='white', linewidth=0)
                 ax.add_patch(rect1)
                 ax.add_patch(rect2)
+            # A gap is represented by the break marks above, not a gene
+            # rectangle.  Continuing also prevents re-adding the previous
+            # feature's rectangle via ``ax.add_patch(rect)`` below.
+            continue
             
         ax.add_patch(rect)
         
@@ -391,6 +403,7 @@ def draw_linear_MT(files,
                    dpi = 300,
                    force_reoriented=True,
                    remove_NCR = False,
+                   default_topology="circular",
                   ):
     
     """
@@ -430,6 +443,7 @@ def draw_linear_MT(files,
         dpi: {int} dpi value. the resolution in dots per inch.
         force_reoriented: {bool} force-reoriendted linear mtgenome.
         remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
+        default_topology: {str} topology to use when the input record does not declare one.
     """    
     
     add_other_genes = False
@@ -440,7 +454,10 @@ def draw_linear_MT(files,
     genome_max_length = 0
     genomes = []
     for file in files:
-        features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start, force_reoriented=force_reoriented)
+        features = get_features(file, abbr=abbr, isfilename2species=isfilename2species,
+                                colors=colors, start=start,
+                                force_reoriented=force_reoriented,
+                                default_topology=default_topology)
         if remove_NCR:
             features = [feature for feature in features if feature.name != "D-loop"]
         
@@ -481,7 +498,7 @@ def draw_linear_MT(files,
     if colors == None:
         legend_elements = MTColors_legends['MITOFISH']
     elif isinstance(colors, str):
-        legend_elements = MTColors_legends.get(colors.upper(), 'MITOFISH')
+        legend_elements = MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH'])
 
     if show_legend:
         if _staus_brake:
@@ -576,6 +593,7 @@ def draw_linear_MT_nonproportional(files,
                                    dpi = 300,
                                    force_reoriented=False,
                                    remove_NCR = False,
+                                   default_topology="circular",
                                   ):
     """
     Descripton:
@@ -607,6 +625,7 @@ def draw_linear_MT_nonproportional(files,
         dpi: {int} dpi value. the resolution in dots per inch.
         force_reoriented: {bool} force-reoriendted linear mtgenome.
         remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
+        default_topology: {str} topology to use when the input record does not declare one.
     """
     add_other_genes = False
     if not (isinstance(files, list)) and (not isinstance(files, tuple)):
@@ -614,7 +633,10 @@ def draw_linear_MT_nonproportional(files,
     
     genomes = []
     for file in reversed(files):
-        features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start, force_reoriented=force_reoriented)
+        features = get_features(file, abbr=abbr, isfilename2species=isfilename2species,
+                                colors=colors, start=start,
+                                force_reoriented=force_reoriented,
+                                default_topology=default_topology)
         if remove_NCR:
             features = [feature for feature in features if feature.name != "D-loop"]
         features = remove_join(features)
@@ -722,7 +744,7 @@ def draw_linear_MT_nonproportional(files,
             legend_elements.extend(MTColors_legends['MITOFISH'])
             ncol = 12
         elif isinstance(colors, str):
-            legend_elements.extend(MTColors_legends.get(colors.upper(), 'MITOFISH'))
+            legend_elements.extend(MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH']))
             ncol=12
         elif isinstance(colors, dict):
             legend_elements.extend([Patch(facecolor=colors[i], edgecolor='black', label=i) for i in colors if i!="source"])

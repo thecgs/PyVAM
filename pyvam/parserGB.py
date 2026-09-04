@@ -93,11 +93,18 @@ def reinit_features(features, start = "tRNA-Phe", force_reoriented=False):
                 break
                 
     if value == None:
-        logger.warning(features[0].file+" does not contain" + start + ". Therefore, the rotation operation was not performed. Please check.")
+        logger.warning(
+            "%s does not contain %s. Therefore, the rotation operation was not performed. Please check.",
+            features[0].file,
+            start,
+        )
         return features
         
     if features[0].topology == "linear" and force_reoriented == False:
-        logger.warning(features[0].file+" is linear topology. Reoriention is disabled by default, so no rotation operation was performed. To force reoriention, use the force_reoriented=True parameter.")
+        logger.warning(
+            "%s is linear topology. Reoriention is disabled by default, so no rotation operation was performed. To force reoriention, use the force_reoriented=True parameter.",
+            features[0].file,
+        )
         return features
         
     _status = True
@@ -145,7 +152,8 @@ def get_type(genename):
     else:
         return "CDS"
         
-def get_features(file, abbr=False, colors=None, isfilename2species=False, start=None, force_reoriented=False):
+def get_features(file, abbr=False, colors=None, isfilename2species=False, start=None,
+                 force_reoriented=False, default_topology="circular"):
     """
     Descripton:
         Parses a genbank file and returns a list of feature classes.
@@ -163,13 +171,20 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
         colors: {str, dict} themes such as, Chen, Tan, ogdraw, mitofish,
                             mitofish1, mitoz,  gggenes, chloroplot, grey, igv.
         force_reoriented: {bool} force-reoriendted linear mtgenome.
+        default_topology: {str} topology to use when the GenBank record does
+                                not declare one ("circular" by default).
     """
     if colors == None:
         colors = MTColors['MITOFISH']
     elif isinstance(colors, str):
-        colors = MTColors.get(colors.upper(), 'MITOFISH')
+        # Return the palette, rather than its name, when a theme is unknown.
+        colors = MTColors.get(colors.upper(), MTColors['MITOFISH'])
     elif isinstance(colors, dict):
         pass
+
+    if not isinstance(default_topology, str) or default_topology.lower() not in {"circular", "linear"}:
+        raise ValueError("default_topology must be either 'circular' or 'linear'.")
+    default_topology = default_topology.lower()
             
     features = []
     unknown_locations = {}
@@ -186,7 +201,16 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
         else:
             partition = "UNA"
             
-        topology = record.annotations['topology'].lower()
+        topology = record.annotations.get('topology')
+        if not isinstance(topology, str) or topology.lower() not in {"circular", "linear"}:
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "%s does not declare a valid topology; assuming %s. Pass "
+                "default_topology to the calling API to override this.",
+                file, default_topology,
+            )
+            topology = default_topology
+        topology = topology.lower()
         mtgenome = record.seq.upper()
         accession = record.id
         
@@ -271,6 +295,16 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
             elif i.type in ['CDS', 'gene']:
                 if gene_name in ['ND1', 'ND2', 'ND3', 'ND4L', 'ND4', 'ND5', 'ND6', 'COX1', 'COX2', 'COX3', 'ATPase6', 'ATPase8', 'Cytb']:
                     if isinstance(i.location, CompoundLocation):
+                        # GenBank commonly carries both a broad ``gene``
+                        # feature and a multipart CDS.  The former may have
+                        # been parsed first; remove that placeholder so it
+                        # cannot suppress the individual CDS parts.
+                        features = [feature for feature in features if not (
+                            feature.name == gene_name and feature.type == "CDS"
+                            and feature.join is None
+                            and i.location.start <= feature.location.start
+                            and feature.location.end <= i.location.end
+                        )]
                         for location in i.location.parts:
                             if not is_repeat(features=features, location=location, name=gene_name):
                                 features.append(Feature(name=gene_name, location=location, type="CDS", color=colors.get(gene_name, colors.get('Other genes', 'gray')),join=i.location))
@@ -403,10 +437,11 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
         res = reinit_features(res, start = start, force_reoriented=force_reoriented)
     return res
     
-def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=2, force_reoriented=False, partition="inherit"):
+def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=2,
+                 force_reoriented=False, partition="inherit", default_topology="circular"):
     """
     Descripton:
-        Use PyVAMR's powerful GenBank parser to reorganize the GenBank 
+        Use PyVAM's powerful GenBank parser to reorganize the GenBank
         and generate a new GenBank file.
     
     Parameters：
@@ -422,6 +457,8 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
         partition: {str} a data file division. inherit: inherit, PRI: primate, ROD: rodent, MAM: mammal, VRT: vertebrate, INV: invertebrate,
                     PLN: plant, BCT: bacterial, VRL: viral, PHG: bacteriophage, SYN: synthetic,
                     UNA: unannotated, ENV: environmental sample.
+        default_topology: {str} topology to use when the input record does not
+                                declare one ("circular" or "linear").
     """
     product = {'ND1': 'NADH dehydrogenase subunit 1',
                'ND2': 'NADH dehydrogenase subunit 2',
@@ -450,9 +487,13 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
         return r
 
     def get_translation_string(feature, mtgenome, table):
-        CDS = feature.location.extract(mtgenome)
+        # ``feature.location`` is the first part retained for drawing a
+        # compound feature.  Use its original compound location when
+        # translating so the exported protein covers every CDS segment.
+        location = feature.join if feature.join is not None else feature.location
+        CDS = location.extract(mtgenome)
         pep = str(CDS.translate(table=table))
-        if str(CDS[0:3]) in Data.CodonTable.unambiguous_dna_by_id[2].start_codons:
+        if str(CDS[0:3]) in Data.CodonTable.unambiguous_dna_by_id[table].start_codons:
             pep = "M" + pep[1:]
         if pep[-1] == "*":
             pep = pep[:-1]
@@ -468,7 +509,9 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
             formatted_lines.append(f"{line_start:>9d} {grouped_line}")    
         return '\n'.join(formatted_lines)
 
-    features =  get_features(file, isfilename2species=isfilename2species, start=start, force_reoriented=force_reoriented)
+    features = get_features(file, isfilename2species=isfilename2species, start=start,
+                            force_reoriented=force_reoriented,
+                            default_topology=default_topology)
     
     features_tmp = []
     tmp = []
@@ -514,14 +557,18 @@ FEATURES             Location/Qualifiers
             if feature.join == None:
                 pos = f"{str(feature.location.start+1)}..{str(feature.location.end)}"
             else:
-                pos = "join(" + ','.join( f"{i.start+1}..{i.end}"  for i in features[1].join.parts) + ")"
+                pos = "join(" + ','.join(
+                    f"{i.start+1}..{i.end}" for i in feature.join.parts
+                ) + ")"
         elif feature.location.strand == -1:
             if feature.join == None:
                 #print(feature.join)
                 pos = f"complement({str(feature.location.start+1)}..{str(feature.location.end)})"
             else:
                 #print(feature.join)
-                pos = "complement(join(" + ','.join( f"{i.start+1}..{i.end}" for i in features[1].join.parts) + "))"
+                pos = "complement(join(" + ','.join(
+                    f"{i.start+1}..{i.end}" for i in feature.join.parts
+                ) + "))"
         
         if feature.type == "tRNA":
             gb_text += f'     tRNA            {pos}\n'

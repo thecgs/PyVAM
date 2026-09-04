@@ -30,7 +30,7 @@ help(pyvam.draw_circos_MT)
 
 Help on function draw_circos_MT in module pyvam.drawMT:
 
-draw_circos_MT(file, output=None, abbr=False, isfilename2species=False, colors='mitofish', radius=25, show_gene_label=True, gene_label_fontsize=7, gene_label_inner=False, show_info=True, info_fontsize=15, show_legend=True, legend_size=6, legend_postion=(1, -0.1), show_GC_circos=True, GC_circos_height=0.3, GC_circos_color='grey', GC_circos_bin=50, GC_circos_step=50, start='tRNA-Phe', axes=None, direction=-1, figsize=(10, 10), tidyname=False, add_id=False, dpi=300)
+draw_circos_MT(file, output=None, abbr=False, isfilename2species=False, colors='mitofish', radius=25, show_gene_label=True, gene_label_size=7, gene_label_inner=False, show_info=True, info_fontsize=15, show_legend=True, legend_size=6, legend_postion=(1, -0.1), show_GC_circos=True, GC_circos_height=0.3, GC_circos_color='grey', GC_circos_bin=50, GC_circos_step=50, start=None, axes=None, direction=-1, figsize=(10, 10), tidyname=False, add_id=False, dpi=300, remove_NCR=False, default_topology='circular')
     Descripton:
         Draw a mitochondrial circos.
         
@@ -43,7 +43,7 @@ draw_circos_MT(file, output=None, abbr=False, isfilename2species=False, colors='
                             mitofish1, mitoz,  gggenes, chloroplot, grey, igv.
         radius: {int} radius of the circle.
         show_gene_label: {bool} show gene label.
-        gene_label_fontsize: {int} gene label fontsize.
+        gene_label_size: {int} gene label fontsize.
         gene_label_inner: {bool} whether the control gene label is inner.
         show_info: {bool} show species name, GC context, genome length, and gene count information.
         info_fontsize: {int} information fontsize.
@@ -55,7 +55,7 @@ draw_circos_MT(file, output=None, abbr=False, isfilename2species=False, colors='
         GC_circos_color {color} color of GC_circos.
         GC_circos_step {int} step of GC_circos (bp).
         GC_circos_bin {int} bin of GC_circos (bp).
-        start: {str} initial feature, such as, ND1, ND2, ND3, ND4, ND4L, ND5, ND6,
+        start: {None, str} initial feature, such as, ND1, ND2, ND3, ND4, ND4L, ND5, ND6,
                      COX1, COX2, COX3, ATPase6, ATPase8, Cytb, tRNA-His, tRNA-Pro,
                      tRNA-Thr, tRNA-Trp, tRNA-Met, tRNA-Asp, tRNA-Ala, tRNA-Gln,
                      tRNA-Ile, tRNA-Arg, tRNA-Tyr, tRNA-Phe, tRNA-Lys, tRNA-Gly,
@@ -67,6 +67,10 @@ draw_circos_MT(file, output=None, abbr=False, isfilename2species=False, colors='
         tidyname: {bool} tidy gene name.
         add_id: {bool} Species add to accession id from NCBI.
         dpi: {int} dpi value. the resolution in dots per inch.
+        remove_NCR: {bool} do not display D-loop.
+        default_topology: {str} topology to assume only when the input GenBank
+            record does not declare one. Accepts "circular" (default) or
+            "linear"; an assumption is reported as a warning.
 ```
 
 
@@ -1315,9 +1319,6 @@ ORIGIN
 //
 </code></pre> 
 </details>
-
-
-
 
 
 

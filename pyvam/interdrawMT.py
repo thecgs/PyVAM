@@ -88,54 +88,57 @@ class InteractiveMTVisualizer:
         return head_length, tail_length, box_width, text_offset
 
     def _get_colors_group(self, colors):
-    
-    
         res = {}
-        if colors.upper() == "MITOZ":
-            for gene in MTColors[colors.upper()]:
-                if gene in ['ND1', 'ND2', 'ND3', 'ND4L', 'ND4', 'ND5', 'ND6', 'COX1', 'COX2', 'COX3', 'ATPase6', 'ATPase8', 'Cytb']:
-                    res[gene] = {'group':'Protein codon genes'}
-                elif gene in ['tRNA-His', 'tRNA-Pro', 'tRNA-Thr', 'tRNA-Trp', 'tRNA-Met',
-                            'tRNA-Asp', 'tRNA-Ala', 'tRNA-Gln', 'tRNA-Ile', 'tRNA-Arg',
-                            'tRNA-Tyr', 'tRNA-Phe', 'tRNA-Lys', 'tRNA-Gly', 'tRNA-Asn',
-                            'tRNA-Leu', 'tRNA-Glu', 'tRNA-Val', 'tRNA-Cys', 'tRNA-Ser']:
-                    res[gene] = {'group':'transfer RNA genes'}
-                elif gene in ['12S rRNA', '16S rRNA']:
-                    res[gene] = {'group':'ribosomal RNA genes'}
-                elif gene in ['D-loop']:
-                    res[gene] = {'group':'D-loop (Non-coding region)'}
-                else:
-                    res[gene] = {'group':'Other genes'}
-                    
-        elif colors.upper() in ["CHEN", "OGDRAW", "MITOFISH", "MITOFISH1", "TAN", "CHLOROPLOT", "GREY", "GGGENES"]:
-            for gene in MTColors[colors.upper()]:
-                if gene in ['ND1', 'ND2', 'ND3', 'ND4L', 'ND4', 'ND5', 'ND6']:
-                    res[gene] = {'group':'Complex I (NADH dehydrogenase)'}
-                elif gene in ['COX1', 'COX2', 'COX3']:
-                    res[gene] = {'group':'Complex IV (Cytochrome c oxidase)'}
-                elif gene in ['ATPase6', 'ATPase8']:
-                    res[gene] = {'group':'ATP synthase'}
-                elif gene in ['Cytb']:
-                    res[gene] = {'group':'Cytochrome b'}
-                elif gene in ['tRNA-His', 'tRNA-Pro', 'tRNA-Thr', 'tRNA-Trp', 'tRNA-Met',
-                            'tRNA-Asp', 'tRNA-Ala', 'tRNA-Gln', 'tRNA-Ile', 'tRNA-Arg',
-                            'tRNA-Tyr', 'tRNA-Phe', 'tRNA-Lys', 'tRNA-Gly', 'tRNA-Asn',
-                            'tRNA-Leu', 'tRNA-Glu', 'tRNA-Val', 'tRNA-Cys', 'tRNA-Ser']:
-                    res[gene] = {'group':'transfer RNA'}
-                elif gene in ['12S rRNA', '16S rRNA']:
-                    res[gene] = {'group':'ribosomal RNA'}
-                elif gene in ['D-loop']:
-                    res[gene] = {'group':'D-loop (Non-coding region)'}
-                else:
-                    res[gene] = {'group':'Other genes'}
+        if isinstance(colors, dict):
+            for gene in colors:
+                res[gene] = {'group': gene}
         else:
-            if colors.upper() == "IGV":
-                for gene in MTColors[colors.upper()]:
+            # Keep the grouping and the parser's palette fallback in sync.
+            theme = colors.upper() if isinstance(colors, str) else "MITOFISH"
+            if theme not in MTColors:
+                theme = "MITOFISH"
+
+            if theme == "MITOZ":
+                for gene in MTColors[theme]:
+                    if gene in ['ND1', 'ND2', 'ND3', 'ND4L', 'ND4', 'ND5', 'ND6', 'COX1', 'COX2', 'COX3', 'ATPase6', 'ATPase8', 'Cytb']:
+                        res[gene] = {'group':'Protein codon genes'}
+                    elif gene in ['tRNA-His', 'tRNA-Pro', 'tRNA-Thr', 'tRNA-Trp', 'tRNA-Met',
+                                'tRNA-Asp', 'tRNA-Ala', 'tRNA-Gln', 'tRNA-Ile', 'tRNA-Arg',
+                                'tRNA-Tyr', 'tRNA-Phe', 'tRNA-Lys', 'tRNA-Gly', 'tRNA-Asn',
+                                'tRNA-Leu', 'tRNA-Glu', 'tRNA-Val', 'tRNA-Cys', 'tRNA-Ser']:
+                        res[gene] = {'group':'transfer RNA genes'}
+                    elif gene in ['12S rRNA', '16S rRNA']:
+                        res[gene] = {'group':'ribosomal RNA genes'}
+                    elif gene in ['D-loop']:
+                        res[gene] = {'group':'D-loop (Non-coding region)'}
+                    else:
+                        res[gene] = {'group':'Other genes'}
+            elif theme == "IGV":
+                for gene in MTColors[theme]:
                     res[gene] = {'group':gene}
             else:
-                for gene in colors:
-                    res[gene] = {'group':gene}
+                for gene in MTColors[theme]:
+                    if gene in ['ND1', 'ND2', 'ND3', 'ND4L', 'ND4', 'ND5', 'ND6']:
+                        res[gene] = {'group':'Complex I (NADH dehydrogenase)'}
+                    elif gene in ['COX1', 'COX2', 'COX3']:
+                        res[gene] = {'group':'Complex IV (Cytochrome c oxidase)'}
+                    elif gene in ['ATPase6', 'ATPase8']:
+                        res[gene] = {'group':'ATP synthase'}
+                    elif gene in ['Cytb']:
+                        res[gene] = {'group':'Cytochrome b'}
+                    elif gene in ['tRNA-His', 'tRNA-Pro', 'tRNA-Thr', 'tRNA-Trp', 'tRNA-Met',
+                                'tRNA-Asp', 'tRNA-Ala', 'tRNA-Gln', 'tRNA-Ile', 'tRNA-Arg',
+                                'tRNA-Tyr', 'tRNA-Phe', 'tRNA-Lys', 'tRNA-Gly', 'tRNA-Asn',
+                                'tRNA-Leu', 'tRNA-Glu', 'tRNA-Val', 'tRNA-Cys', 'tRNA-Ser']:
+                        res[gene] = {'group':'transfer RNA'}
+                    elif gene in ['12S rRNA', '16S rRNA']:
+                        res[gene] = {'group':'ribosomal RNA'}
+                    elif gene in ['D-loop']:
+                        res[gene] = {'group':'D-loop (Non-coding region)'}
+                    else:
+                        res[gene] = {'group':'Other genes'}
 
+        res.setdefault('Other genes', {'group': 'Other genes'})
         res['Gap'] =  {'group':"Gap"}
         return res
         
@@ -167,6 +170,7 @@ class InteractiveMTVisualizer:
                                               editable=False,
                                               force_reoriented=False,
                                               remove_NCR = False,
+                                              default_topology="circular",
                                               ):
         """
         Descripton:
@@ -195,6 +199,7 @@ class InteractiveMTVisualizer:
             editable: {bool} Make HTML files editable.
             force_reoriented: {bool} force-reoriendted linear mtgenome.
             remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
+            default_topology: {str} topology to use when the input record does not declare one.
         """
         color2groups = self._get_colors_group(colors)
         tmp_groups = set()
@@ -209,7 +214,10 @@ class InteractiveMTVisualizer:
         
         genomes = []
         for file in reversed(files):
-            features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start, force_reoriented=force_reoriented)
+            features = get_features(file, abbr=abbr, isfilename2species=isfilename2species,
+                                    colors=colors, start=start,
+                                    force_reoriented=force_reoriented,
+                                    default_topology=default_topology)
             if remove_NCR:
                 features = [feature for feature in features if feature.name != "D-loop"]
             features = self.remove_join(features)
@@ -457,6 +465,7 @@ class InteractiveMTVisualizer:
                               editable=False,
                               force_reoriented=False,
                               remove_NCR = False,
+                              default_topology="circular",
                              ):
         """
         Descripton:
@@ -484,7 +493,8 @@ class InteractiveMTVisualizer:
             add_id: {bool} Species add to accession id from NCBI.
             editable: {bool} Make HTML files editable.
             force_reoriented: {bool} force-reoriendted linear mtgenome.
-            remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.     
+            remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
+            default_topology: {str} topology to use when the input record does not declare one.
         """
         
         color2groups = self._get_colors_group(colors)
@@ -507,7 +517,10 @@ class InteractiveMTVisualizer:
         species_names = []
         _staus_brake = False
         for i, file in enumerate(files):
-            features = get_features(file, abbr=abbr, isfilename2species=isfilename2species, colors=colors, start=start, force_reoriented=force_reoriented)
+            features = get_features(file, abbr=abbr, isfilename2species=isfilename2species,
+                                    colors=colors, start=start,
+                                    force_reoriented=force_reoriented,
+                                    default_topology=default_topology)
             
             if remove_NCR:
                 features = [feature for feature in features if feature.name != "D-loop"]
@@ -764,7 +777,8 @@ class InteractiveMTVisualizer:
 def draw_linear_MT_nonproportional_interactive(files, output=None, abbr=False, isfilename2species=False,
                                                colors="mitofish", gene_label_size=9, gene_label_color='black',
                                                show_legend=True,
-                                               start=None, species_label_size=12, species_label_color='black', add_id=False, editable=False, force_reoriented=False, remove_NCR = False):
+                                               start=None, species_label_size=12, species_label_color='black', add_id=False, editable=False, force_reoriented=False, remove_NCR = False,
+                                               default_topology="circular"):
     """
     Descripton:
         The order of mitochondrial genes is not depicted in proportion to their gene size.
@@ -792,6 +806,7 @@ def draw_linear_MT_nonproportional_interactive(files, output=None, abbr=False, i
         editable: {bool} Make HTML files editable.
         force_reoriented: {bool} force-reoriendted linear mtgenome.
         remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation. 
+        default_topology: {str} topology to use when the input record does not declare one.
     """
     return InteractiveMTVisualizer().draw_linear_MT_nonproportional_plotly(files=files,
                                                                            output=output,
@@ -799,7 +814,7 @@ def draw_linear_MT_nonproportional_interactive(files, output=None, abbr=False, i
                                                                            isfilename2species=isfilename2species, 
                                                                            colors=colors,
                                                                            gene_label_size=gene_label_size, 
-                                                                           gene_label_color='black',
+                                                                           gene_label_color=gene_label_color,
                                                                            show_legend=show_legend,
                                                                            start=start,
                                                                            species_label_size=species_label_size,
@@ -807,7 +822,8 @@ def draw_linear_MT_nonproportional_interactive(files, output=None, abbr=False, i
                                                                            add_id=add_id,
                                                                            editable=editable,
                                                                            force_reoriented=force_reoriented,
-                                                                           remove_NCR =remove_NCR)
+                                                                           remove_NCR=remove_NCR,
+                                                                           default_topology=default_topology)
 
 def draw_linear_MT_interactive(files, output=None,
                                abbr=False,
@@ -824,7 +840,8 @@ def draw_linear_MT_interactive(files, output=None,
                                add_id=False,
                                editable=False,
                                force_reoriented=False,
-                               remove_NCR = False):
+                               remove_NCR = False,
+                               default_topology="circular"):
     """
     Descripton:
         The order of mitochondrial genes, arranged in proportion to their size.
@@ -852,6 +869,7 @@ def draw_linear_MT_interactive(files, output=None,
         editable: {bool} Make HTML files editable.
         force_reoriented: {bool} force-reoriendted linear mtgenome.
         remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
+        default_topology: {str} topology to use when the input record does not declare one.
     """
     return InteractiveMTVisualizer().draw_linear_MT_plotly(files=files,
                                                            output=output,
@@ -869,4 +887,5 @@ def draw_linear_MT_interactive(files, output=None,
                                                            add_id=add_id,
                                                            editable=editable,
                                                            force_reoriented=force_reoriented,
-                                                           remove_NCR =remove_NCR)
+                                                           remove_NCR=remove_NCR,
+                                                           default_topology=default_topology)
