@@ -80,6 +80,8 @@ pyvam.draw_linear_MT(
 
 Common options include `colors`, `start`, `force_reoriented`, `remove_NCR`, `default_topology`, `output`, and `dpi`. Run `help(pyvam.draw_circos_MT)` or `help(pyvam.tidy_genbank)` for the full signature.
 
+For linear genomes, `start` does not rotate the sequence by default; pass `force_reoriented=True` to enable rotation explicitly. For circular genomes, `start` selects the new origin without requiring this flag.
+
 ## Examples
 
 ### Circular map of *Homo sapiens*
@@ -1355,4 +1357,3 @@ MPLBACKEND=Agg python -m pytest
 ```
 
 The tests cover topology fallback and validation, multipart CDS export and translation, translation-table selection, custom interactive colors, label colors, and high-level plotting options.
-

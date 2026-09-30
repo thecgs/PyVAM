@@ -10,7 +10,7 @@ print("example2")
 fig, ax = pyvam.draw_circos_MT("MK804157", colors="OGDRAW", output="./doc/Fig.2.png", dpi=72)
 
 #example3
-print("example4")
+print("example3")
 fig, axs = plt.subplots(1, 3, figsize=(20, 20/3), subplot_kw={'projection':'polar'})
 plt.subplots_adjust(wspace=0.3)
 

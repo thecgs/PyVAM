@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib import collections
 from matplotlib.patches import Patch, FancyArrow
 from matplotlib.lines import Line2D
-from .parserGB import get_features
+from .parserGB import feature_key, get_features
 from .config import MTColors_legends, FullName2AbbrName
 from Bio.Seq import UndefinedSequenceError
 
@@ -24,11 +24,17 @@ def get_GC(seq):
     except ZeroDivisionError:
         return 0 
 
-def get_GC_bar_param(features, bin=50, step=50):
+def get_GC_bar_param(features, bin=50, step=50, scale_factor=None):
+    if isinstance(bin, bool) or not isinstance(bin, int) or bin <= 0:
+        raise ValueError("GC bin must be a positive integer.")
+    if isinstance(step, bool) or not isinstance(step, int) or step <= 0:
+        raise ValueError("GC step must be a positive integer.")
     x = []
     y = []
     w = []
-    scale_factor = (2 * math.pi) / (len(features[0].mtgenome) + 1)
+    if scale_factor is None:
+        angle = 1.9 * math.pi if features[0].topology == "linear" else 2 * math.pi
+        scale_factor = angle / (len(features[0].mtgenome) + 1)
     for i in range(0, len(features[0].mtgenome), step):
         if (i + bin) < len(features[0].mtgenome):
             start = i + 1
@@ -51,34 +57,16 @@ def get_GC_bar_param(features, bin=50, step=50):
     return x, y, w
     
 def stat_features(features):
-    tRNA_count = 0
-    rRNA_count = 0
-    PCG_count = 0
+    counts = {"tRNA": 0, "rRNA": 0, "CDS": 0}
+    seen = set()
     for feature in features:
-        if re.search('tRNA', feature.name) and feature.join==None:
-            tRNA_count += 1
-        elif re.search('rRNA', feature.name) and feature.join==None:
-            rRNA_count += 1
-        elif feature.type == 'CDS' and feature.join==None:
-        #elif re.search('COX|ATP|Cytb|ND', feature.name) and feature.join==None:
-            PCG_count += 1
-
-    tmp = []
-    features_join = []
-    for feature in features:
-        if feature.join not in tmp:
-            tmp.append(feature.join)
-            features_join.append(feature)
-
-    for feature in features_join:
-        if re.search('tRNA', feature.name):
-            tRNA_count += 1
-        elif re.search('rRNA', feature.name):
-            rRNA_count += 1
-        elif feature.type == 'CDS':
-        #elif re.search('COX|ATP|Cytb|ND', feature.name):
-            PCG_count += 1
-    return tRNA_count, rRNA_count, PCG_count
+        if feature.type not in counts:
+            continue
+        key = feature_key(feature)
+        if key not in seen:
+            counts[feature.type] += 1
+            seen.add(key)
+    return counts["tRNA"], counts["rRNA"], counts["CDS"]
 
 def draw_circos_MT(file,
                    output=None,
@@ -149,11 +137,17 @@ def draw_circos_MT(file,
         remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
         default_topology: {str} topology to use when the input record does not declare one.
     """
+    if isinstance(GC_circos_bin, bool) or not isinstance(GC_circos_bin, int) or GC_circos_bin <= 0:
+        raise ValueError("GC bin must be a positive integer.")
+    if isinstance(GC_circos_step, bool) or not isinstance(GC_circos_step, int) or GC_circos_step <= 0:
+        raise ValueError("GC step must be a positive integer.")
+
     add_other_genes = False
     if axes==None:
         fig, ax = plt.subplots(1,1, subplot_kw={'projection':'polar'}, figsize=figsize)
     else:
         ax = axes
+        fig = ax.figure
     
     ax.set_theta_zero_location('N')
     #ax.set_theta_offset(offset)
@@ -261,7 +255,8 @@ def draw_circos_MT(file,
         ncol = 4
     
     if add_other_genes == False:
-        legend_elements = legend_elements[:-1]
+        legend_elements = [element for element in legend_elements
+                           if element.get_label() != "Other genes"]
     
     if show_legend:
         ax.legend(handles=legend_elements,
@@ -274,7 +269,8 @@ def draw_circos_MT(file,
                   title='')
     
     if show_GC_circos:
-        x,y,w = get_GC_bar_param(features, step=GC_circos_step, bin=GC_circos_bin)
+        x,y,w = get_GC_bar_param(features, step=GC_circos_step, bin=GC_circos_bin,
+                               scale_factor=scale_factor)
         ax.bar(x, [i*10 *GC_circos_height for i in y], width=w, bottom=radius-10, color=GC_circos_color, linewidth=0, edgecolor='black')
     
     if output!=None:
@@ -282,8 +278,9 @@ def draw_circos_MT(file,
     
     if axes==None:
         return fig, ax
+    return ax
  
-def _get_mt_rect_ax(ax, features, show_info=True, info_fontsize=10, show_gene_label=True, gene_label_size=5, add_id=False, force_reoriented=True, species_label_size=10, species_label_color='black'):
+def _get_mt_rect_ax(ax, features, show_info=True, info_fontsize=10, show_gene_label=True, gene_label_size=5, add_id=False, force_reoriented=False, species_label_size=10, species_label_color='black', gene_label_color='black'):
     height = 0.2     # gene width
     linewidth = 0.03 # genome width
     _staus_brake_tmp = False
@@ -310,7 +307,7 @@ def _get_mt_rect_ax(ax, features, show_info=True, info_fontsize=10, show_gene_la
                                  edgecolor='black')
             if show_gene_label:
                 x = (end-start)/2 + start
-                ax.text(x, y=0.45+height+linewidth+0.05, s=feature.name, rotation = 'vertical', size=gene_label_size, ha='center')
+                ax.text(x, y=0.45+height+linewidth+0.05, s=feature.name, rotation = 'vertical', size=gene_label_size, color=gene_label_color, ha='center')
             
         elif feature.location.strand == -1:
             rect = plt.Rectangle(xy=(start, 0.25), 
@@ -320,7 +317,7 @@ def _get_mt_rect_ax(ax, features, show_info=True, info_fontsize=10, show_gene_la
                                  edgecolor='black')
             if show_gene_label:
                 x = (end-start)/2 + start
-                ax.text(x, y=0.45-height-linewidth+0.005, s=feature.name, rotation = 'vertical', size=gene_label_size, va='top', ha='center')
+                ax.text(x, y=0.45-height-linewidth+0.005, s=feature.name, rotation = 'vertical', size=gene_label_size, color=gene_label_color, va='top', ha='center')
         else:
             _staus_brake = True
             _staus_brake_tmp = True
@@ -401,7 +398,7 @@ def draw_linear_MT(files,
                    tidyname=False,
                    add_id = False,
                    dpi = 300,
-                   force_reoriented=True,
+                   force_reoriented=False,
                    remove_NCR = False,
                    default_topology="circular",
                   ):
@@ -441,7 +438,7 @@ def draw_linear_MT(files,
         tidyname: {bool} tidy gene name.
         add_id: {bool} Species add to accession id from NCBI.
         dpi: {int} dpi value. the resolution in dots per inch.
-        force_reoriented: {bool} force-reoriendted linear mtgenome.
+        force_reoriented: {bool} rotate linear genomes when start is set; default=False.
         remove_NCR {bool}: Do not display D-loop; this may be useful for comparing a mix of genbank with and without NCR annotation.
         default_topology: {str} topology to use when the input record does not declare one.
     """    
@@ -450,6 +447,8 @@ def draw_linear_MT(files,
     
     if not (isinstance(files, list)) and (not isinstance(files, tuple)):
         files = [files]
+    if not files:
+        raise ValueError("at least one input file is required")
     
     genome_max_length = 0
     genomes = []
@@ -461,7 +460,7 @@ def draw_linear_MT(files,
         if remove_NCR:
             features = [feature for feature in features if feature.name != "D-loop"]
         
-        add_other_genes = is_othergenes(features)
+        add_other_genes = add_other_genes or is_othergenes(features)
         if tidyname:
             for i, f in enumerate(features):
                 features[i].name = FullName2AbbrName.get(f.name, f.name)
@@ -475,17 +474,18 @@ def draw_linear_MT(files,
         fig, ax= plt.subplots(len(genomes), 1, figsize=(20, len(genomes)*subplot_height_cex), sharex=True, sharey=True)
         
     plt.subplots_adjust(hspace=hspace)
-    
+
+    _staus_brake = False
     if show_xaxis == False and len(genomes) == 1:
         for i, features in enumerate(genomes):
             _staus_brake = _get_mt_rect_ax(ax=ax, features=features, show_info=show_info,
                            info_fontsize=info_fontsize, show_gene_label=show_gene_label, 
-                           gene_label_size=gene_label_size, add_id=add_id,force_reoriented=force_reoriented, species_label_size=species_label_size, species_label_color=species_label_color)
+                           gene_label_size=gene_label_size, gene_label_color=gene_label_color, add_id=add_id,force_reoriented=force_reoriented, species_label_size=species_label_size, species_label_color=species_label_color) or _staus_brake
     else:
         for i, features in enumerate(genomes):
             _staus_brake = _get_mt_rect_ax(ax=ax[i], features=features, show_info=show_info,
                             info_fontsize=info_fontsize, show_gene_label=show_gene_label,
-                            gene_label_size=gene_label_size, add_id=add_id,force_reoriented=force_reoriented, species_label_size=species_label_size, species_label_color=species_label_color)
+                            gene_label_size=gene_label_size, gene_label_color=gene_label_color, add_id=add_id,force_reoriented=force_reoriented, species_label_size=species_label_size, species_label_color=species_label_color) or _staus_brake
         
     if show_xaxis:
         ax[-1].get_yaxis().set_visible(False)
@@ -500,6 +500,10 @@ def draw_linear_MT(files,
     elif isinstance(colors, str):
         legend_elements = MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH'])
 
+    elif isinstance(colors, dict):
+        legend_elements = [Patch(facecolor=color, edgecolor='black', label=name)
+                           for name, color in colors.items() if name != "source"]
+
     if show_legend:
         if _staus_brake:
             legend_elements = [Line2D([0], [0], color='black',marker='>', markersize=legend_size, 
@@ -509,9 +513,11 @@ def draw_linear_MT(files,
                               ] + legend_elements
             
         if add_other_genes == False:
-            legend_elements = legend_elements[:-1]
-            
-        ax[-1].legend(handles=legend_elements,
+            legend_elements = [element for element in legend_elements
+                               if element.get_label() != "Other genes"]
+
+        legend_ax = ax if not show_xaxis and len(genomes) == 1 else ax[-1]
+        legend_ax.legend(handles=legend_elements,
                       loc='upper right', 
                       bbox_to_anchor=legend_postion, 
                       ncol=12,
@@ -567,9 +573,10 @@ def remove_join(features):
     res = []
     for feature in features:
         if feature.join!=None:
-            if feature.join not in tmp:
+            key = feature_key(feature)
+            if key not in tmp:
                 res.append(feature)
-                tmp.append(feature.join)
+                tmp.append(key)
         else:
             res.append(feature)
     return res
@@ -630,6 +637,8 @@ def draw_linear_MT_nonproportional(files,
     add_other_genes = False
     if not (isinstance(files, list)) and (not isinstance(files, tuple)):
         files = [files]
+    if not files:
+        raise ValueError("at least one input file is required")
     
     genomes = []
     for file in reversed(files):
@@ -641,15 +650,16 @@ def draw_linear_MT_nonproportional(files,
             features = [feature for feature in features if feature.name != "D-loop"]
         features = remove_join(features)
         genomes.append(features)
-        add_other_genes = is_othergenes(features)
+        add_other_genes = add_other_genes or is_othergenes(features)
     
     if axes == None:
         fig, ax= plt.subplots(1, 1, figsize=(20, len(genomes)/2))
     else:
         ax = axes
+        fig = ax.figure
     ax.set_ylim(0,len(genomes))
     
-    xlimmax = 0
+    x_bounds = []
     ys = []
     ss = []
     _staus_brake = False
@@ -657,7 +667,7 @@ def draw_linear_MT_nonproportional(files,
         for i, f in enumerate(features):
             features[i].name = FullName2AbbrName.get(f.name, f.name)
             
-        if features[1].location.strand == -1:
+        if len(features) > 1 and features[1].location.strand == -1:
             x = get_box_param(features[1].name)[2]+0
         else:
             x=0
@@ -670,6 +680,7 @@ def draw_linear_MT_nonproportional(files,
             
         for i, feature in enumerate(features[1:]):
             head_length, tail_length, box_width, text_offset= get_box_param(feature.name)
+            arrow = None
             
             if feature.location.strand == 1:
                 arrow = FancyArrow(x, y+0.5, tail_length, 0, width=height, fc=feature.color, ec='black', head_width=height, head_length=head_length)
@@ -692,6 +703,8 @@ def draw_linear_MT_nonproportional(files,
                                                    [(x+box_width/2, y+0.2), (x+box_width*5/6, y+0.8)]],
                                                   color=["black", "black"])
                 ax.add_collection(line)
+                x_bounds.extend(float(point[0]) for segment in line.get_segments()
+                                for point in segment)
                 
                 if i+1 < len(features[1:]):
                     if features[1:][i+1].location.strand == -1:
@@ -699,11 +712,18 @@ def draw_linear_MT_nonproportional(files,
                     else:
                         x += get_box_param(features[1:][i+1].name)[2]
             
-            ax.add_patch(arrow)
-            if xlimmax < x:
-                xlimmax = x
-                
-    ax.set_xlim(0, xlimmax + xlimmax*0.05)           
+            if arrow is not None:
+                ax.add_patch(arrow)
+                arrow_x = arrow.get_xy()[:, 0]
+                x_bounds.extend((float(arrow_x.min()), float(arrow_x.max())))
+
+    # Include arrow heads and break markers, including the final feature.
+    # The placement cursor alone does not cover their full visible width.
+    
+    xmin, xmax = min(x_bounds, default=0), max(x_bounds, default=1)
+    padding = (xmax - xmin or 1) * 0.01
+    ax.set_xlim(xmin - padding, xmax + padding)
+    
     ax.get_xaxis().set_visible(False)
     #ax.get_yaxis().set_visible(False)
     ax.spines['left'].set_visible(False)
@@ -751,7 +771,8 @@ def draw_linear_MT_nonproportional(files,
             ncol = 12
             
         if add_other_genes == False:
-            legend_elements = legend_elements[:-1]
+            legend_elements = [element for element in legend_elements
+                               if element.get_label() != "Other genes"]
         ax.legend(handles=legend_elements,
                   loc='upper right', 
                   bbox_to_anchor=legend_postion, 
@@ -775,7 +796,7 @@ def add_tag(axs=None,
             fontpostiton=(-0.15, 1.1), 
             labels = ["A", "B", "C", "D", "E", "F",
                       "G", "H", "I", "J", "K", "L",
-                      "M", "N", "O", "P", "Q", "I",
+                      "M", "N", "O", "P", "Q", "R",
                       "S", "T", "U", "V", "W", "X",
                       "Y", "Z"]):
     """
@@ -797,18 +818,37 @@ def add_tag(axs=None,
      "bold.italic": ("bold", "italic")
     }
     
-    axs_new= []
-    if len(axs.shape) == 1:
-        axs_new = axs
-    else:
-        if by_row:
-            for x in range(0, axs.shape[0]):
-                for y in range(0, axs.shape[1]):
-                    axs_new.append(ax[(x,y)])
+    if axs is None:
+        raise ValueError("axs must be a Matplotlib Axes object or an axes array.")
+
+    # Matplotlib returns a scalar Axes for a 1-panel figure, and an ndarray
+    # for multi-panel figures. Normalize both forms to a flat list.
+    if hasattr(axs, "text") and not hasattr(axs, "shape"):
+        axs_new = [axs]
+    elif hasattr(axs, "shape"):
+        axs_new = []
+        if len(axs.shape) == 0:
+            axs_new = [axs.item()]
+        elif len(axs.shape) == 1:
+            axs_new = list(axs)
         else:
-            for x in range(0, axs.shape[1]):
-                for y in range(0, axs.shape[0]):
-                    axs_new.append(ax[(y,x)])
+            if by_row:
+                for x in range(0, axs.shape[0]):
+                    for y in range(0, axs.shape[1]):
+                        axs_new.append(axs[(x, y)])
+            else:
+                for x in range(0, axs.shape[1]):
+                    for y in range(0, axs.shape[0]):
+                        axs_new.append(axs[(y, x)])
+    elif isinstance(axs, (list, tuple)):
+        axs_new = list(axs)
+    else:
+        raise TypeError("axs must be a Matplotlib Axes object or an axes array.")
+
+    if len(labels) < len(axs_new):
+        raise ValueError(f"labels must contain at least {len(axs_new)} entries (got {len(labels)}).")
+    if not axs_new:
+        raise ValueError("axs must contain at least one Matplotlib Axes object.")
     for n, ax in enumerate(axs_new):
         
         

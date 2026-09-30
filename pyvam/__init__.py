@@ -7,4 +7,4 @@ __update__ = """update informations
 2026/08/11
 add to interactive mitogenome visualizer functions
 """
-__version__="v1.0.2"
+__version__="v1.0.3"

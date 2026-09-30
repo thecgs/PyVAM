@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-from .parserGB import get_features
+from .parserGB import feature_key, get_features
 from .config import MTColors_legends, MTColors, FullName2AbbrName
 
 class InteractiveMTVisualizer:
@@ -91,7 +91,7 @@ class InteractiveMTVisualizer:
         if isinstance(colors, dict):
             for gene in colors:
                 res[gene] = {'group': gene}
-        else:
+        elif colors is None or isinstance(colors, str):
             # Keep the grouping and the parser's palette fallback in sync.
             theme = colors.upper() if isinstance(colors, str) else "MITOFISH"
             if theme not in MTColors:
@@ -137,6 +137,9 @@ class InteractiveMTVisualizer:
                     else:
                         res[gene] = {'group':'Other genes'}
 
+        else:
+            raise TypeError("colors must be None, a theme name (str), or a color mapping (dict).")
+
         res.setdefault('Other genes', {'group': 'Other genes'})
         res['Gap'] =  {'group':"Gap"}
         return res
@@ -146,9 +149,10 @@ class InteractiveMTVisualizer:
         res = []
         for feature in features:
             if feature.join!=None:
-                if feature.join not in tmp:
+                key = feature_key(feature)
+                if key not in tmp:
                     res.append(feature)
-                    tmp.append(feature.join)
+                    tmp.append(key)
             else:
                 res.append(feature)
         return res
@@ -208,6 +212,8 @@ class InteractiveMTVisualizer:
         
         if not isinstance(files, (list, tuple)):
             files = [files]
+        if not files:
+            raise ValueError("at least one input file is required")
         
         fig = go.Figure()
         
@@ -234,7 +240,7 @@ class InteractiveMTVisualizer:
             species_label = features[0].name + (f" ({features[0].accession})" if add_id else "")
             species_labels.append(species_label)
             
-            if features[1].location.strand == -1:
+            if len(features) > 1 and features[1].location.strand == -1:
                 x_position = self._get_box_param(features[1].name)[2]+0
             else:
                 x_position=0
@@ -501,6 +507,8 @@ class InteractiveMTVisualizer:
         
         if not isinstance(files, (list, tuple)):
             files = [files]
+        if not files:
+            raise ValueError("at least one input file is required")
 
         if editable:
             self.nav_config["editable"] = True
