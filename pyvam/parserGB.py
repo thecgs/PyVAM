@@ -12,6 +12,10 @@ from Bio.SeqFeature import CompoundLocation, ExactPosition, SimpleLocation, SeqF
 from Bio.SeqRecord import SeqRecord
 from functools import lru_cache
 
+# Aliases may be removed when they are covered by the flexible matcher, but
+# their canonical display names remain recognized results.
+CANONICAL_GENE_NAMES = frozenset(CommonNamesDict.values())
+
 class Feature:
     def __init__(self, name, location, type, color, join=None, mtgenome=None, accession=None, file=None, topology=None, partition=None, codon_start=1, locus_tags=(), original_type=None):
         self.name = name
@@ -92,7 +96,7 @@ def _recognized_rna_name(annotation):
         for value in annotation.qualifiers.get(key, []):
             name = search_name(value)
             name = CommonNamesDict.get(name.upper(), name)
-            if name.upper() in CommonNamesDict and get_type(name) == annotation.type:
+            if name in CANONICAL_GENE_NAMES and get_type(name) == annotation.type:
                 return name
     return None
 
@@ -349,25 +353,25 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
                         gene_name =  search_name(gene_name)
 
                         #print("gene_product", gene_name)
-                        if gene_name.upper() not in CommonNamesDict and "gene" in i.qualifiers:
+                        if gene_name not in CANONICAL_GENE_NAMES and "gene" in i.qualifiers:
                             gene_name = i.qualifiers['gene'][0]
                             gene_name =  search_name(gene_name)
 
-                            if gene_name.upper() not in CommonNamesDict and "note" in i.qualifiers:
+                            if gene_name not in CANONICAL_GENE_NAMES and "note" in i.qualifiers:
                                 gene_name = i.qualifiers['note'][0]
                                 gene_name =  search_name(gene_name)
-                                if gene_name.upper() not in CommonNamesDict and i.type.upper() in CommonNamesDict:
+                                if gene_name not in CANONICAL_GENE_NAMES and i.type.upper() in CommonNamesDict:
                                     gene_name =  search_name(i.type)
 
                     elif "gene" in i.qualifiers:
                         gene_name = i.qualifiers['gene'][0]
                         gene_name =  search_name(gene_name)
                         #print(i, gene_name)
-                        if gene_name.upper() not in CommonNamesDict and "note" in i.qualifiers:
+                        if gene_name not in CANONICAL_GENE_NAMES and "note" in i.qualifiers:
                             #print(i, gene_name)
                             gene_name = i.qualifiers['note'][0]
                             gene_name =  search_name(gene_name)
-                            if gene_name.upper() not in CommonNamesDict and i.type.upper() in CommonNamesDict:
+                            if gene_name not in CANONICAL_GENE_NAMES and i.type.upper() in CommonNamesDict:
                                 gene_name =  search_name(i.type)
 
                     elif "note" in i.qualifiers:
@@ -375,7 +379,7 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
                         gene_name = i.qualifiers["note"][0]
                         gene_name =  search_name(gene_name)
                         #print(i, gene_name)
-                        if gene_name.upper() not in CommonNamesDict and i.type.upper() in CommonNamesDict:
+                        if gene_name not in CANONICAL_GENE_NAMES and i.type.upper() in CommonNamesDict:
                             gene_name =  search_name(i.type)
 
                     elif "organism" in i.qualifiers:
