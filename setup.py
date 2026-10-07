@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name="pyvam",
-      version="1.0.2",
+      version="1.0.3",
       description='A Python package for comparative visualization of animal mitochondrial genomes',
       url='https://github.com/thecgs/PyVAM',
       author='Guisen Chen',

@@ -10,6 +10,7 @@ from Bio import SeqIO, Entrez, Data
 from .config import CommonNamesDict, MTColors
 from Bio.SeqFeature import CompoundLocation, ExactPosition, SimpleLocation, SeqFeature, Reference
 from Bio.SeqRecord import SeqRecord
+from functools import lru_cache
 
 class Feature:
     def __init__(self, name, location, type, color, join=None, mtgenome=None, accession=None, file=None, topology=None, partition=None, codon_start=1, locus_tags=(), original_type=None):
@@ -34,18 +35,26 @@ class Feature:
 
 
 def alias_regex(alias):
-    parts = re.split(r"[\s_-]+", alias.strip())
-    return r"[\s_-]*".join(re.escape(part) for part in parts)
+    parts = re.split(r"[\s_/#-]+", alias.strip())
+    return r"[\s_/#-]*".join(re.escape(part) for part in parts)
+
+@lru_cache(maxsize=None)
+def alias_pattern(alias):
+    pattern = (
+        r"(?:^|[\s_/#:,\-])"
+        + alias_regex(alias)
+        + r"(?=$|[\s_/#:,\-()])"
+    )
+    return re.compile(pattern)
     
 def search_name(gene_name):
     gene_name = gene_name.upper()
     if gene_name in CommonNamesDict:
         return CommonNamesDict[gene_name]
     for alias, canonical in CommonNamesDict.items():
-        if re.match(r"^" + alias_regex(alias) + r"(?:$|[\s_\-(:,])", gene_name):
+        if alias_pattern(alias).search(gene_name):
             return canonical
     return gene_name
-
 
 def feature_key(feature):
     """Identify a biological annotation, including all its drawing parts."""
