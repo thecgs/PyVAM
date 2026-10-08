@@ -597,7 +597,7 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
     return res
 
 
-def extract_seq(inputfile, isfilename2species=False, abbr=False, table="auto", start=None,
+def extract_seq(inputfile, isfilename2species=False, abbr=False, table=2, start=None,
                 force_reoriented=False, include_gene_name=False,
                 number_duplicate_genes=False, strip_terminal_stop=True,
                 output_dir=None, overwrite=False):
@@ -616,7 +616,7 @@ def extract_seq(inputfile, isfilename2species=False, abbr=False, table="auto", s
             used as the output prefix. default=False.
         table: {int, "auto"} NCBI translation-table ID for CDS protein export,
             or ``"auto"`` to read a shared CDS ``/transl_table`` qualifier
-            from the GenBank file. default="auto".
+            from the GenBank file. default=2.
         start: {None, str} feature at which to reorient the mitochondrial
             genome before export, such as ND1 or tRNA-Phe. default=None.
         force_reoriented: {bool} allow reorientation of a linear genome when
@@ -645,14 +645,13 @@ def extract_seq(inputfile, isfilename2species=False, abbr=False, table="auto", s
         raise TypeError("strip_terminal_stop must be a bool.")
     if not isinstance(overwrite, bool):
         raise TypeError("overwrite must be a bool.")
-    table = resolve_translation_table(inputfile, table, require_single_record=True)
-
     features = get_features(inputfile, abbr=abbr,
                             isfilename2species=isfilename2species is True,
                             start=start, force_reoriented=force_reoriented)
     source = next((feature for feature in features if feature.type == "source"), None)
     if source is None or source.mtgenome is None:
         raise ValueError(f"{inputfile}: a source feature with a genome sequence is required.")
+    table = resolve_translation_table(inputfile, table, require_single_record=True)
 
     if isfilename2species is True:
         prefix = os.path.splitext(os.path.basename(inputfile))[0]
@@ -774,7 +773,7 @@ def extract_seq(inputfile, isfilename2species=False, abbr=False, table="auto", s
         )
     return paths
 
-def tidy_genbank(file, output=None, isfilename2species=False, start=None, table="auto",
+def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=2,
                  force_reoriented=False, partition="inherit", default_topology="circular",
                  strip_terminal_stop=True):
     """
@@ -786,7 +785,7 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
         file: {str} a genbankfile or NCBI accession ID.
         table: {int, "auto"} NCBI translation-table ID, or ``"auto"`` to
             read a shared CDS ``/transl_table`` qualifier from the GenBank
-            file. default="auto".
+            file. default=2.
         start: {None, str} initial feature, such as, ND1, ND2, ND3, ND4, ND4L, ND5, ND6,
                      COX1, COX2, COX3, ATPase6, ATPase8, Cytb, tRNA-His, tRNA-Pro,
                      tRNA-Thr, tRNA-Trp, tRNA-Met, tRNA-Asp, tRNA-Ala, tRNA-Gln,
@@ -804,8 +803,6 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
     """
     if not isinstance(strip_terminal_stop, bool):
         raise TypeError("strip_terminal_stop must be a bool.")
-    table = resolve_translation_table(file, table, require_single_record=True)
-
     product = {'ND1': 'NADH dehydrogenase subunit 1',
                'ND2': 'NADH dehydrogenase subunit 2',
                'ND3': 'NADH dehydrogenase subunit 3',
@@ -846,6 +843,7 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
     features = get_features(file, isfilename2species=isfilename2species, start=start,
                             force_reoriented=force_reoriented,
                             default_topology=default_topology)
+    table = resolve_translation_table(file, table, require_single_record=True)
     
     features_tmp = []
     tmp = []
