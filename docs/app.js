@@ -2,7 +2,7 @@ const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.5/full/";
 const PYVAM_FILES = ["config.py", "parserGB.py", "drawMT.py"];
 const $ = (s) => document.querySelector(s);
 const el = { files: $("#file-input"), selectedFiles: $("#selected-files"), chooseFiles: $("#choose-files"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
-const state = { pyodide: null, files: [], inputs: [], nextInputId: 0, image: null, options: null, pendingFiles: [], pendingAccessions: [] };
+const state = { pyodide: null, files: [], inputs: [], nextInputId: 0, image: null, options: null, classOverrides: {}, pendingFiles: [], pendingAccessions: [] };
 const mode = () => document.querySelector('input[name="view"]:checked').value;
 const status = (text) => { el.status.textContent = text; };
 const esc = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" })[c]);
@@ -31,7 +31,7 @@ def pyvam_options():
     return json.dumps({
         "themes": sorted(MTColors),
         "markers": sorted(set(CommonNamesDict.values()), key=str.casefold),
-        "class_colours": {theme: {klass: palette.get(members[0], palette.get("Other genes", "#808080")) for klass, members in GENE_CLASSES.items()} for theme, palette in MTColors.items()},
+        "class_colours": {theme: {klass: palette.get(members[0], palette.get("Other genes", "#808080"))[:7] for klass, members in GENE_CLASSES.items()} for theme, palette in MTColors.items()},
     })
 
 def pyvam_describe(paths_json):
@@ -53,9 +53,13 @@ def pyvam_render(paths_json, view, theme, start, labels, custom_colors_json, opt
     plt.close("all")
     colors = theme
     class_colours = json.loads(custom_colors_json)
-    colors = dict(MTColors[theme.upper()])
-    for klass, members in GENE_CLASSES.items():
-        for gene in members: colors[gene] = class_colours[klass]
+    # Preserve each PyVAM theme exactly (including RGBA alpha) unless the user
+    # explicitly changes a class colour in the web UI.
+    colors = theme
+    if class_colours:
+        colors = dict(MTColors[theme.upper()])
+        for klass, colour in class_colours.items():
+            for gene in GENE_CLASSES[klass]: colors[gene] = colour
     web = json.loads(options_json)
     options = dict(colors=colors, start=start or None, isfilename2species=web["isfilename2species"],
                    abbr=web["abbr"], add_id=web["add_id"], remove_NCR=web["remove_ncr"], dpi=150)
@@ -89,6 +93,7 @@ def pyvam_render(paths_json, view, theme, start, labels, custom_colors_json, opt
 `;
 
 function colourEditors(theme) {
+  state.classOverrides = {};
   const palette = state.options.class_colours[theme] || {};
   el.customColors.innerHTML = Object.entries(palette).map(([name, colour]) => `<label class="colour-row" style="--class-color:${esc(colour)}"><span class="class-name">${esc(name)}</span><input class="hex-colour" type="color" value="${esc(colour)}" data-class-colour="${esc(name)}" aria-label="${esc(name)} colour" /></label>`).join("");
 }
@@ -213,8 +218,7 @@ async function render() {
   const hexInputs = [...document.querySelectorAll(".hex-colour")];
   if (!hexInputs.every(updateHexInput)) { el.summary.textContent = "Colours must use six-digit hexadecimal form, for example #FFEC00."; return; }
   const view = mode(), start = el.start.value;
-  const customColors = Object.fromEntries([...el.customColors.querySelectorAll("[data-class-colour]")]
-    .map((picker) => [picker.dataset.classColour, picker.value]));
+  const customColors = state.classOverrides;
   el.render.disabled = true; status("PyVAM is rendering…");
   try {
     state.pyodide.globals.set("web_paths_json", JSON.stringify(state.files)); state.pyodide.globals.set("web_view", view); state.pyodide.globals.set("web_theme", el.theme.value); state.pyodide.globals.set("web_start", start); state.pyodide.globals.set("web_labels", el.labels.checked); state.pyodide.globals.set("web_custom_colors", JSON.stringify(customColors)); state.pyodide.globals.set("web_options", JSON.stringify(webOptions()));
@@ -253,8 +257,8 @@ function updateHexInput(input) {
   if (input.dataset.classColour) input.closest(".colour-row").style.setProperty("--class-color", input.value);
   return true;
 }
-el.customColors.addEventListener("input", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) render(); });
-el.customColors.addEventListener("change", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) render(); });
+el.customColors.addEventListener("input", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) { state.classOverrides[event.target.dataset.classColour] = event.target.value; render(); } });
+el.customColors.addEventListener("change", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) { state.classOverrides[event.target.dataset.classColour] = event.target.value; render(); } });
 document.querySelectorAll(".hex-colour").forEach((input) => { updateHexInput(input); input.addEventListener("input", () => { if (updateHexInput(input)) render(); }); });
 el.reset.addEventListener("click", () => { state.files = []; state.inputs = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; renderSelectedFiles(); el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; });
 el.download.addEventListener("click", () => { if (!state.image) return; const link = Object.assign(document.createElement("a"), { href: `data:image/svg+xml;base64,${state.image}`, download: `pyvam-${mode()}-map.svg` }); link.click(); });

@@ -11,6 +11,40 @@ from .parserGB import feature_key, get_features
 from .config import MTColors_legends, FullName2AbbrName
 from Bio.Seq import UndefinedSequenceError
 
+
+# Functional groups used only to compact legends from user-provided colour
+# mappings. A group is collapsed only when every present member shares a colour.
+_CUSTOM_COLOUR_LEGEND_GROUPS = (
+    ("Complex I (NADH dehydrogenase)", ("ND1", "ND2", "ND3", "ND4L", "ND4", "ND5", "ND6")),
+    ("Complex IV (Cytochrome c oxidase)", ("COX1", "COX2", "COX3")),
+    ("ATP synthase", ("ATPase6", "ATPase8")),
+    ("transfer RNA", None),
+    ("ribosomal RNA", ("12S rRNA", "16S rRNA")),
+)
+
+
+def custom_colour_legend(colors):
+    """Return compact legend handles for a custom PyVAM colour mapping.
+
+    Individual feature colours are unchanged. Only same-colour functional
+    groups are collapsed in the legend; differently coloured members remain
+    individual entries so that no colour distinction is hidden.
+    """
+    handles, consumed = [], set()
+    for label, members in _CUSTOM_COLOUR_LEGEND_GROUPS:
+        present = ([name for name in colors if name.startswith("tRNA-")]
+                   if members is None else [name for name in members if name in colors])
+        if not present:
+            continue
+        values = {colors[name] for name in present}
+        if len(values) == 1:
+            handles.append(Patch(facecolor=values.pop(), edgecolor='black', label=label))
+            consumed.update(present)
+    for name, color in colors.items():
+        if name != "source" and name not in consumed:
+            handles.append(Patch(facecolor=color, edgecolor='black', label=name))
+    return handles
+
 def rotation_text(theta):
     d =  (theta * 180 / math.pi)
     if d <180:
@@ -251,7 +285,7 @@ def draw_circos_MT(file,
         else:
             ncol = 1
     elif isinstance(colors, dict):
-        legend_elements = [Patch(facecolor=colors[i], edgecolor='black', label=i) for i in colors if i!="source"]
+        legend_elements = custom_colour_legend(colors)
         ncol = 4
     
     if add_other_genes == False:
@@ -501,8 +535,7 @@ def draw_linear_MT(files,
         legend_elements = MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH'])
 
     elif isinstance(colors, dict):
-        legend_elements = [Patch(facecolor=color, edgecolor='black', label=name)
-                           for name, color in colors.items() if name != "source"]
+        legend_elements = custom_colour_legend(colors)
 
     if show_legend:
         if _staus_brake:
@@ -767,7 +800,7 @@ def draw_linear_MT_nonproportional(files,
             legend_elements.extend(MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH']))
             ncol=12
         elif isinstance(colors, dict):
-            legend_elements.extend([Patch(facecolor=colors[i], edgecolor='black', label=i) for i in colors if i!="source"])
+            legend_elements.extend(custom_colour_legend(colors))
             ncol = 12
             
         if add_other_genes == False:

@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A browser-based multi-GenBank mitochondrial genome viewer for PyVAM." />
     <title>PyVAM Web — mitochondrial genome viewer</title>
-    <link rel="stylesheet" href="styles.css?v=202610081530" />
+    <link rel="stylesheet" href="styles.css?v=202610081605" />
   </head>
   <body>
     <header class="site-header">
       <a class="brand" href="https://github.com/thecgs/PyVAM" aria-label="PyVAM repository">PyVAM <span>Web</span></a>
       <p>Multi-GenBank mitochondrial genome explorer</p>
+      <a class="repository-link" href="https://github.com/thecgs/PyVAM" target="_blank" rel="noopener noreferrer">GitHub Repository ↗</a>
       <output id="runtime-status" class="status">Preparing PyVAM…</output>
     </header>
 
@@ -26,7 +27,6 @@
             <span>Multiple files supported</span>
             </button>
           </div>
-          <div id="selected-files" class="selected-files" aria-live="polite">No GenBank files selected.</div>
           <label for="accession-input">NCBI accession IDs</label>
           <textarea id="accession-input" rows="3" placeholder="NC_012920.1&#10;NC_002333.2&#10;or comma-separated"></textarea>
           <button id="add-accessions" type="button">Add NCBI accessions</button>
@@ -88,7 +88,8 @@
           </div>
           <p id="plot-note" class="muted">Load one or more annotated genomes to begin.</p>
         </div>
-        <div id="stats" class="stats" aria-label="Loaded genome summaries"></div>
+        <div id="selected-files" class="selected-files workspace-inputs" aria-live="polite">No GenBank files selected.</div>
+        <div id="stats" class="stats" aria-label="Loaded genome summaries" hidden></div>
         <div id="plot" class="plot empty">
           <div>
             <span class="empty-icon">◎</span>
@@ -99,6 +100,6 @@
     </main>
 
     <footer>PyVAM Web runs the bundled PyVAM renderer locally through Pyodide. GenBank files remain on your device.</footer>
-    <script type="module" src="app.js?v=202610081530"></script>
+    <script type="module" src="app.js?v=202610081610"></script>
   </body>
 </html>
