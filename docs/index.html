@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A browser-based multi-GenBank mitochondrial genome viewer for PyVAM." />
     <title>PyVAM Web — mitochondrial genome viewer</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=202610081530" />
   </head>
   <body>
     <header class="site-header">
@@ -20,12 +20,13 @@
           <h1>Visualize genomes</h1>
           <p class="muted">Files are rendered by PyVAM in your browser. Select several GenBank files to compare them side by side.</p>
           <div class="upload">
-            <input id="file-input" type="file" accept=".gb,.gbk,.genbank,.txt" multiple hidden />
+            <input id="file-input" class="file-picker" type="file" accept=".gb,.gbk,.genbank,.txt" multiple />
             <button id="choose-files" type="button">
             <strong>Choose GenBank files</strong>
             <span>Multiple files supported</span>
             </button>
           </div>
+          <div id="selected-files" class="selected-files" aria-live="polite">No GenBank files selected.</div>
           <label for="accession-input">NCBI accession IDs</label>
           <textarea id="accession-input" rows="3" placeholder="NC_012920.1&#10;NC_002333.2&#10;or comma-separated"></textarea>
           <button id="add-accessions" type="button">Add NCBI accessions</button>
@@ -98,6 +99,6 @@
     </main>
 
     <footer>PyVAM Web runs the bundled PyVAM renderer locally through Pyodide. GenBank files remain on your device.</footer>
-    <script type="module" src="app.js"></script>
+    <script type="module" src="app.js?v=202610081530"></script>
   </body>
 </html>

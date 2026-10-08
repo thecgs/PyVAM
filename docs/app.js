@@ -1,8 +1,8 @@
 const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.5/full/";
 const PYVAM_FILES = ["config.py", "parserGB.py", "drawMT.py"];
 const $ = (s) => document.querySelector(s);
-const el = { files: $("#file-input"), chooseFiles: $("#choose-files"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
-const state = { pyodide: null, files: [], image: null, options: null, pendingFiles: [], pendingAccessions: [] };
+const el = { files: $("#file-input"), selectedFiles: $("#selected-files"), chooseFiles: $("#choose-files"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
+const state = { pyodide: null, files: [], inputs: [], nextInputId: 0, image: null, options: null, pendingFiles: [], pendingAccessions: [] };
 const mode = () => document.querySelector('input[name="view"]:checked').value;
 const status = (text) => { el.status.textContent = text; };
 const esc = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" })[c]);
@@ -34,7 +34,8 @@ def pyvam_options():
         "class_colours": {theme: {klass: palette.get(members[0], palette.get("Other genes", "#808080")) for klass, members in GENE_CLASSES.items()} for theme, palette in MTColors.items()},
     })
 
-def pyvam_describe(paths):
+def pyvam_describe(paths_json):
+    paths = json.loads(paths_json)
     result = []
     for path in paths:
         features = get_features(path, isfilename2species=True)
@@ -46,8 +47,9 @@ def pyvam_describe(paths):
         })
     return json.dumps(result)
 
-def pyvam_render(paths, view, theme, start, labels, custom_colors_json, options_json):
+def pyvam_render(paths_json, view, theme, start, labels, custom_colors_json, options_json):
     # The image comes from PyVAM's public drawing API, not browser-side SVG code.
+    paths = json.loads(paths_json)
     plt.close("all")
     colors = theme
     class_colours = json.loads(custom_colors_json)
@@ -131,6 +133,16 @@ function updateStats(rows) {
   el.stats.innerHTML = rows.map((r) => `<div class="stat"><strong title="${esc(r.name)}">${esc(r.name)}</strong><span>${Number(r.length).toLocaleString()} bp · ${r.features} PyVAM features</span></div>`).join("");
 }
 
+function addInput(path, label) {
+  state.inputs.push({ id: ++state.nextInputId, path, label });
+  state.files = state.inputs.map((item) => item.path);
+}
+
+function renderSelectedFiles() {
+  if (!state.inputs.length) { el.selectedFiles.textContent = "No GenBank files selected."; return; }
+  el.selectedFiles.innerHTML = state.inputs.map((item) => `<span class="selected-file"><span title="${esc(item.label)}">${esc(item.label)}</span><button class="remove-file" type="button" data-input-id="${item.id}" aria-label="Remove ${esc(item.label)}">×</button></span>`).join("");
+}
+
 function optionalNumber(id) {
   const raw = $(id).value.trim();
   return raw === "" ? null : Number(raw);
@@ -166,8 +178,9 @@ async function importFiles(files) {
   for (const [i, file] of files.entries()) {
     const name = `upload-${Date.now()}-${i}-${file.name.replace(/[^A-Za-z0-9._-]+/g, "_") || "genome.gbk"}`;
     state.pyodide.FS.writeFile(`/home/${name}`, new Uint8Array(await file.arrayBuffer()));
-    state.files.push(`/home/${name}`);
+    addInput(`/home/${name}`, file.webkitRelativePath || file.name);
   }
+  renderSelectedFiles();
   await refreshInputs();
 }
 
@@ -180,15 +193,16 @@ async function importAccessions(accessions) {
     const response = await fetch(endpoint);
     if (!response.ok) throw new Error(`NCBI returned HTTP ${response.status} for ${clean}`);
     state.pyodide.FS.writeFile(`/home/ncbi-${clean.replace(/[^A-Za-z0-9._-]+/g, "_")}.gb`, new Uint8Array(await response.arrayBuffer()));
-    state.files.push(`/home/ncbi-${clean.replace(/[^A-Za-z0-9._-]+/g, "_")}.gb`);
+    addInput(`/home/ncbi-${clean.replace(/[^A-Za-z0-9._-]+/g, "_")}.gb`, `NCBI: ${clean}`);
   }
+  renderSelectedFiles();
   await refreshInputs();
 }
 
 async function refreshInputs() {
   try {
-    state.pyodide.globals.set("web_paths", state.files);
-    updateStats(JSON.parse(await state.pyodide.runPythonAsync("pyvam_describe(web_paths)")));
+    state.pyodide.globals.set("web_paths_json", JSON.stringify(state.files));
+    updateStats(JSON.parse(await state.pyodide.runPythonAsync("pyvam_describe(web_paths_json)")));
     el.summary.textContent = `${state.files.length} GenBank file${state.files.length === 1 ? "" : "s"} ready for PyVAM rendering.`;
     await render();
   } catch (error) { el.summary.textContent = `PyVAM could not parse the selected input(s): ${error.message}`; console.error(error); }
@@ -203,8 +217,8 @@ async function render() {
     .map((picker) => [picker.dataset.classColour, picker.value]));
   el.render.disabled = true; status("PyVAM is rendering…");
   try {
-    state.pyodide.globals.set("web_paths", state.files); state.pyodide.globals.set("web_view", view); state.pyodide.globals.set("web_theme", el.theme.value); state.pyodide.globals.set("web_start", start); state.pyodide.globals.set("web_labels", el.labels.checked); state.pyodide.globals.set("web_custom_colors", JSON.stringify(customColors)); state.pyodide.globals.set("web_options", JSON.stringify(webOptions()));
-    state.image = await state.pyodide.runPythonAsync("pyvam_render(web_paths, web_view, web_theme, web_start, web_labels, web_custom_colors, web_options)");
+    state.pyodide.globals.set("web_paths_json", JSON.stringify(state.files)); state.pyodide.globals.set("web_view", view); state.pyodide.globals.set("web_theme", el.theme.value); state.pyodide.globals.set("web_start", start); state.pyodide.globals.set("web_labels", el.labels.checked); state.pyodide.globals.set("web_custom_colors", JSON.stringify(customColors)); state.pyodide.globals.set("web_options", JSON.stringify(webOptions()));
+    state.image = await state.pyodide.runPythonAsync("pyvam_render(web_paths_json, web_view, web_theme, web_start, web_labels, web_custom_colors, web_options)");
     el.plot.classList.remove("empty"); el.plot.innerHTML = `<img class="pyvam-figure" alt="PyVAM ${esc(view)} rendering" src="data:image/svg+xml;base64,${state.image}" />`;
     el.title.textContent = view === "order" ? "PyVAM gene-order comparison" : `PyVAM ${view} genome map${state.files.length === 1 ? "" : "s"}`;
     el.note.textContent = `${state.files.length} file${state.files.length === 1 ? "" : "s"} rendered by PyVAM + Matplotlib in this browser.`;
@@ -213,8 +227,15 @@ async function render() {
   finally { el.render.disabled = false; }
 }
 
-el.chooseFiles.addEventListener("click", () => el.files.click());
-el.files.addEventListener("change", (event) => { const files = [...event.target.files]; event.target.value = ""; if (files.length) el.summary.textContent = `${files.length} file(s) selected; importing…`; importFiles(files); });
+el.files.addEventListener("change", (event) => { const files = [...event.target.files]; event.target.value = ""; if (files.length) { el.selectedFiles.textContent = files.map((file) => file.webkitRelativePath || file.name).join("\n"); el.summary.textContent = `${files.length} file(s) selected; importing…`; } importFiles(files); });
+el.selectedFiles.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-input-id]"); if (!button) return;
+  state.inputs = state.inputs.filter((item) => item.id !== Number(button.dataset.inputId));
+  state.files = state.inputs.map((item) => item.path);
+  renderSelectedFiles();
+  if (state.files.length) await refreshInputs();
+  else { state.image = null; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.download.disabled = true; }
+});
 el.addAccessions.addEventListener("click", async () => {
   const accessions = el.accessions.value.split(/[\s,;]+/).filter(Boolean);
   if (!accessions.length) { el.summary.textContent = "Enter one or more NCBI nucleotide accession IDs first."; return; }
@@ -235,7 +256,7 @@ function updateHexInput(input) {
 el.customColors.addEventListener("input", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) render(); });
 el.customColors.addEventListener("change", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) render(); });
 document.querySelectorAll(".hex-colour").forEach((input) => { updateHexInput(input); input.addEventListener("input", () => { if (updateHexInput(input)) render(); }); });
-el.reset.addEventListener("click", () => { state.files = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; });
+el.reset.addEventListener("click", () => { state.files = []; state.inputs = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; renderSelectedFiles(); el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; });
 el.download.addEventListener("click", () => { if (!state.image) return; const link = Object.assign(document.createElement("a"), { href: `data:image/svg+xml;base64,${state.image}`, download: `pyvam-${mode()}-map.svg` }); link.click(); });
 updateViewOptions();
 initialise();
