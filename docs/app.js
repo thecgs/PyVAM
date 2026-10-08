@@ -1,7 +1,7 @@
 const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.5/full/";
 const PYVAM_FILES = ["config.py", "parserGB.py", "drawMT.py"];
 const $ = (s) => document.querySelector(s);
-const el = { files: $("#file-input"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
+const el = { files: $("#file-input"), chooseFiles: $("#choose-files"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
 const state = { pyodide: null, files: [], image: null, options: null, pendingFiles: [], pendingAccessions: [] };
 const mode = () => document.querySelector('input[name="view"]:checked').value;
 const status = (text) => { el.status.textContent = text; };
@@ -213,7 +213,8 @@ async function render() {
   finally { el.render.disabled = false; }
 }
 
-el.files.addEventListener("change", (event) => importFiles([...event.target.files]));
+el.chooseFiles.addEventListener("click", () => el.files.click());
+el.files.addEventListener("change", (event) => { const files = [...event.target.files]; event.target.value = ""; if (files.length) el.summary.textContent = `${files.length} file(s) selected; importing…`; importFiles(files); });
 el.addAccessions.addEventListener("click", async () => {
   const accessions = el.accessions.value.split(/[\s,;]+/).filter(Boolean);
   if (!accessions.length) { el.summary.textContent = "Enter one or more NCBI nucleotide accession IDs first."; return; }

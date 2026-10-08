@@ -19,11 +19,13 @@
         <section>
           <h1>Visualize genomes</h1>
           <p class="muted">Files are rendered by PyVAM in your browser. Select several GenBank files to compare them side by side.</p>
-          <label class="upload" for="file-input">
-            <input id="file-input" type="file" accept=".gb,.gbk,.genbank,.txt" multiple />
+          <div class="upload">
+            <input id="file-input" type="file" accept=".gb,.gbk,.genbank,.txt" multiple hidden />
+            <button id="choose-files" type="button">
             <strong>Choose GenBank files</strong>
             <span>Multiple files supported</span>
-          </label>
+            </button>
+          </div>
           <label for="accession-input">NCBI accession IDs</label>
           <textarea id="accession-input" rows="3" placeholder="NC_012920.1&#10;NC_002333.2&#10;or comma-separated"></textarea>
           <button id="add-accessions" type="button">Add NCBI accessions</button>
