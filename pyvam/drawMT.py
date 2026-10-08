@@ -18,7 +18,7 @@ _CUSTOM_COLOUR_LEGEND_GROUPS = (
     ("Complex I (NADH dehydrogenase)", ("ND1", "ND2", "ND3", "ND4L", "ND4", "ND5", "ND6")),
     ("Complex IV (Cytochrome c oxidase)", ("COX1", "COX2", "COX3")),
     ("ATP synthase", ("ATPase6", "ATPase8")),
-    ("transfer RNA", None),
+    ("transfer RNA", ("tRNA-His", "tRNA-Pro", "tRNA-Thr", "tRNA-Trp", "tRNA-Met", "tRNA-Asp", "tRNA-Ala", "tRNA-Gln", "tRNA-Ile", "tRNA-Arg", "tRNA-Tyr", "tRNA-Phe", "tRNA-Lys", "tRNA-Gly", "tRNA-Asn", "tRNA-Leu", "tRNA-Glu", "tRNA-Val", "tRNA-Cys", "tRNA-Ser")),
     ("ribosomal RNA", ("12S rRNA", "16S rRNA")),
 )
 
@@ -26,20 +26,22 @@ _CUSTOM_COLOUR_LEGEND_GROUPS = (
 def custom_colour_legend(colors):
     """Return compact legend handles for a custom PyVAM colour mapping.
 
-    Individual feature colours are unchanged. Only same-colour functional
-    groups are collapsed in the legend; differently coloured members remain
-    individual entries so that no colour distinction is hidden.
+    Individual feature colours are unchanged. Groups are compared using their
+    resolved drawing colours (including the ``Other genes`` fallback), so a
+    partially specified mapping can still collapse a genuinely same-colour
+    class. Differently coloured members remain individual entries.
     """
     handles, consumed = [], set()
     for label, members in _CUSTOM_COLOUR_LEGEND_GROUPS:
-        present = ([name for name in colors if name.startswith("tRNA-")]
-                   if members is None else [name for name in members if name in colors])
-        if not present:
+        expected = list(members)
+        # Do not invent a biological class from a mapping that only provides a
+        # generic fallback; at least one member must be named explicitly.
+        if not any(name in colors for name in expected):
             continue
-        values = {colors[name] for name in present}
+        values = {colors.get(name, colors.get("Other genes", "gray")) for name in expected}
         if len(values) == 1:
             handles.append(Patch(facecolor=values.pop(), edgecolor='black', label=label))
-            consumed.update(present)
+            consumed.update(expected)
     for name, color in colors.items():
         if name != "source" and name not in consumed:
             handles.append(Patch(facecolor=color, edgecolor='black', label=name))

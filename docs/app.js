@@ -69,9 +69,17 @@ def pyvam_render(paths_json, view, theme, start, labels, custom_colors_json, opt
     if view == "circular":
         columns = min(3, len(paths)); rows = (len(paths) + columns - 1) // columns
         fig, axes = plt.subplots(rows, columns, subplot_kw={"projection": "polar"}, figsize=(6 * columns, 6 * rows), squeeze=False)
-        for path, axis in zip(paths, axes.flat):
-            circos_options = dict(options, show_gene_label=labels, show_legend=web["show_legend"], show_GC_circos=True)
+        for index, (path, axis) in enumerate(zip(paths, axes.flat)):
+            circos_options = dict(options, show_gene_label=labels,
+                                  show_legend=web["show_legend"] and index == len(paths) - 1,
+                                  show_GC_circos=web["show_gc_circos"],
+                                  gene_label_inner=web["gene_label_inner"],
+                                  show_info=web["show_info"], direction=web["direction"],
+                                  tidyname=web["tidyname"])
             if web["gene_label_size"] is not None: circos_options["gene_label_size"] = web["gene_label_size"]
+            for key in ("radius", "info_fontsize", "GC_circos_height", "GC_circos_bin", "GC_circos_step"):
+                if web[key] is not None: circos_options[key] = web[key]
+            circos_options["GC_circos_color"] = web["GC_circos_color"]
             draw_circos_MT(path, axes=axis, **circos_options)
         for axis in list(axes.flat)[len(paths):]: axis.set_visible(False)
     elif view == "linear":
@@ -169,6 +177,17 @@ function webOptions() {
     species_label_size: optionalNumber("#species-label-size"),
     species_label_color: $("#species-label-color").value,
     height: optionalNumber("#order-height"),
+    radius: optionalNumber("#circos-radius"),
+    gene_label_inner: $("#gene-label-inner").checked,
+    show_info: $("#show-info").checked,
+    info_fontsize: optionalNumber("#info-fontsize"),
+    direction: Number($("#circos-direction").value),
+    tidyname: $("#tidyname").checked,
+    show_gc_circos: $("#show-gc-circos").checked,
+    GC_circos_height: optionalNumber("#gc-circos-height"),
+    GC_circos_color: $("#gc-circos-color").value,
+    GC_circos_bin: optionalNumber("#gc-circos-bin"),
+    GC_circos_step: optionalNumber("#gc-circos-step"),
   };
 }
 
@@ -176,14 +195,21 @@ function updateViewOptions() {
   const view = mode();
   document.querySelectorAll(".linear-option").forEach((node) => { node.hidden = view === "circular"; });
   document.querySelectorAll(".order-option").forEach((node) => { node.hidden = view !== "order"; });
+  document.querySelectorAll(".circular-option").forEach((node) => { node.hidden = view !== "circular"; });
+  document.querySelectorAll(".gc-option").forEach((node) => { node.hidden = view !== "circular" || !$("#show-gc-circos").checked; });
 }
 
 async function importFiles(files) {
   if (!state.pyodide) { state.pendingFiles.push(...files); el.summary.textContent = `${state.pendingFiles.length} file(s) queued until PyVAM is ready.`; return; }
   for (const [i, file] of files.entries()) {
-    const name = `upload-${Date.now()}-${i}-${file.name.replace(/[^A-Za-z0-9._-]+/g, "_") || "genome.gbk"}`;
-    state.pyodide.FS.writeFile(`/home/${name}`, new Uint8Array(await file.arrayBuffer()));
-    addInput(`/home/${name}`, file.webkitRelativePath || file.name);
+    // Preserve the original basename for isfilename2species; a unique parent
+    // directory prevents collisions between separately selected same-name files.
+    const uploadDir = `/home/uploads/${Date.now()}-${i}`;
+    const name = file.name.replace(/[\\/]/g, "_") || "genome.gbk";
+    state.pyodide.FS.mkdirTree(uploadDir);
+    const path = `${uploadDir}/${name}`;
+    state.pyodide.FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
+    addInput(path, file.webkitRelativePath || file.name);
   }
   renderSelectedFiles();
   await refreshInputs();
@@ -248,7 +274,7 @@ el.addAccessions.addEventListener("click", async () => {
 });
 el.render.addEventListener("click", render);
 document.querySelectorAll('input[name="view"]').forEach((input) => input.addEventListener("change", () => { updateViewOptions(); render(); }));
-[el.start, el.labels, ...document.querySelectorAll(".option-group input")].forEach((input) => input.addEventListener("change", render));
+[el.start, el.labels, ...document.querySelectorAll(".option-group input, .option-group select")].forEach((input) => input.addEventListener("change", () => { updateViewOptions(); render(); }));
 el.theme.addEventListener("change", () => { colourEditors(el.theme.value); render(); });
 function updateHexInput(input) {
   const value = input.value.trim();
