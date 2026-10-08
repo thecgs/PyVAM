@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A browser-based multi-GenBank mitochondrial genome viewer for PyVAM." />
     <title>PyVAM Web — mitochondrial genome viewer</title>
-    <link rel="stylesheet" href="styles.css?v=202610081700" />
+    <link rel="stylesheet" href="styles.css?v=202610081710" />
   </head>
   <body>
     <header class="site-header">
@@ -17,22 +17,14 @@
 
     <main class="layout">
       <aside class="controls" aria-label="Plot controls">
-        <section>
-          <h1>Visualize genomes</h1>
-          <p class="muted">Files are rendered by PyVAM in your browser. Select several GenBank files to compare them side by side.</p>
-          <div class="upload">
-            <input id="file-input" class="file-picker" type="file" accept=".gb,.gbk,.genbank,.txt" multiple />
-            <button id="choose-files" type="button">
-            <strong>Choose GenBank files</strong>
-            <span>Multiple files supported</span>
-            </button>
-          </div>
-          <label for="accession-input">NCBI accession IDs</label>
-          <textarea id="accession-input" rows="3" placeholder="NC_012920.1&#10;NC_002333.2&#10;or comma-separated"></textarea>
-          <button id="add-accessions" type="button">Add NCBI accessions</button>
-          <p id="file-summary" class="muted" hidden>No genomes loaded.</p>
+        <section class="actions primary-actions" aria-label="Rendering actions">
+          <button id="render-button" class="primary" type="button">Render view</button>
+          <button id="download-button" type="button" disabled>Download PyVAM SVG</button>
+          <button id="download-png-button" type="button" disabled>Download PNG (300 dpi)</button>
+          <button id="download-pdf-button" type="button" disabled>Download PDF</button>
+          <button id="cancel-button" class="quiet" type="button" hidden>Cancel current task</button>
+          <p id="task-progress" class="task-progress" hidden aria-live="polite"></p>
         </section>
-
         <section>
           <h2>Presentation</h2>
           <fieldset class="segmented" id="view-mode">
@@ -64,6 +56,16 @@
             <label class="linear-option" for="species-label-size">Species label size</label><input class="linear-option" id="species-label-size" type="number" min="1" max="30" step="0.5" placeholder="PyVAM default" />
             <label class="linear-option" for="species-label-color">Species label colour</label><input class="linear-option hex-colour" id="species-label-color" type="color" value="#000000" />
             <label class="order-option" for="order-height">Gene-order box height</label><input class="order-option" id="order-height" type="number" min="0.1" max="1" step="0.05" placeholder="0.6" />
+            <label class="check not-order-option"><input id="show-info" type="checkbox" checked /> Show genome information</label>
+            <label class="not-order-option" for="info-fontsize">Information font size</label><input class="not-order-option" id="info-fontsize" type="number" min="1" max="50" step="0.5" placeholder="10" />
+            <label class="check not-order-option"><input id="tidyname" type="checkbox" /> Use abbreviated gene names</label>
+          </details>
+          <details class="option-group linear-map-option" open>
+            <summary>Linear axis &amp; layout</summary>
+            <label class="check"><input id="show-xaxis" type="checkbox" checked /> Show X axis</label>
+            <label class="linear-axis-option" for="xaxis-fontsize">X-axis font size</label><input class="linear-axis-option" id="xaxis-fontsize" type="number" min="1" max="30" step="0.5" placeholder="10" />
+            <label for="linear-hspace">Genome row spacing</label><input id="linear-hspace" type="number" min="0" max="2" step="0.05" placeholder="0.5" />
+            <label for="subplot-height-cex">Genome row height</label><input id="subplot-height-cex" type="number" min="0.5" max="5" step="0.1" placeholder="1.5" />
           </details>
           <details class="option-group" open>
             <summary>Legend</summary>
@@ -75,10 +77,7 @@
             <summary>Circular appearance</summary>
             <label for="circos-radius">Radius</label><input id="circos-radius" type="number" min="1" step="1" placeholder="25" />
             <label class="check"><input id="gene-label-inner" type="checkbox" /> Place gene labels inside ring</label>
-            <label class="check"><input id="show-info" type="checkbox" checked /> Show centre information</label>
-            <label for="info-fontsize">Information font size</label><input id="info-fontsize" type="number" min="1" max="50" step="0.5" placeholder="15" />
             <label for="circos-direction">Direction</label><select id="circos-direction"><option value="-1">Clockwise</option><option value="1">Counter-clockwise</option></select>
-            <label class="check"><input id="tidyname" type="checkbox" /> Use abbreviated gene names</label>
           </details>
           <details class="option-group circular-option" open>
             <summary>GC content ring</summary>
@@ -90,17 +89,26 @@
           </details>
         </section>
 
-        <section class="actions">
-          <button id="render-button" class="primary" type="button">Render view</button>
-          <button id="download-button" type="button" disabled>Download PyVAM SVG</button>
-          <button id="reset-button" class="quiet" type="button">Clear files</button>
-        </section>
       </aside>
 
       <section class="input-panel" aria-label="Selected GenBank files">
-        <p class="eyebrow">INPUT GENOMES</p>
+        <h1>Visualize genomes</h1>
+        <p class="muted">Files are rendered by PyVAM in your browser. Select several GenBank files to compare them side by side.</p>
+        <div class="upload">
+          <input id="file-input" class="file-picker" type="file" accept=".gb,.gbk,.genbank,.txt" multiple />
+          <button id="choose-files" type="button">
+            <strong>Choose GenBank files</strong>
+            <span>Multiple files supported</span>
+          </button>
+        </div>
+        <label for="accession-input">NCBI accession IDs</label>
+        <textarea id="accession-input" rows="3" placeholder="NC_012920.1&#10;NC_002333.2&#10;or comma-separated"></textarea>
+        <button id="add-accessions" type="button">Add NCBI accessions</button>
+        <p id="file-summary" class="muted" hidden>No genomes loaded.</p>
+        <p class="eyebrow input-files-heading">INPUT GENOMES</p>
         <h2 id="input-title">0 GenBank files</h2>
         <div id="selected-files" class="selected-files input-files" aria-live="polite">No GenBank files selected.</div>
+        <button id="reset-button" class="quiet clear-files" type="button">Clear files</button>
       </section>
 
       <section class="workspace" aria-live="polite">
@@ -122,6 +130,6 @@
     </main>
 
     <footer>PyVAM Web runs the bundled PyVAM renderer locally through Pyodide. GenBank files remain on your device.</footer>
-    <script type="module" src="app.js?v=202610081700"></script>
+    <script type="module" src="app.js?v=202610081800"></script>
   </body>
 </html>
