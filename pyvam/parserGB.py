@@ -5,7 +5,12 @@ import re
 import os
 import time
 import logging
+import warnings
+from collections import Counter
+from contextlib import ExitStack
 from copy import copy
+from io import StringIO
+from uuid import uuid4
 from Bio import SeqIO, Entrez, Data
 from .config import CommonNamesDict, MTColors
 from Bio.SeqFeature import CompoundLocation, ExactPosition, SimpleLocation, SeqFeature, Reference
@@ -135,10 +140,66 @@ def rotate_seq(seq, index):
     k = k % len(seq)
     return seq[-k:] + seq[:-k]
 
-def get_genbank_from_ncbi(accession):
+@lru_cache(maxsize=32)
+def _get_genbank_text_from_ncbi(accession):
     Entrez.email = "thecgs001.foxmail.com"
-    gb_text = Entrez.efetch(db="Nucleotide", id=accession, rettype='gb')
-    return gb_text
+    handle = Entrez.efetch(db="Nucleotide", id=accession, rettype="gb")
+    try:
+        return handle.read()
+    finally:
+        handle.close()
+
+def get_genbank_from_ncbi(accession):
+    """Return a fresh readable handle while caching downloaded GenBank text."""
+    return StringIO(_get_genbank_text_from_ncbi(accession))
+
+def resolve_translation_table(file, table, require_single_record=False):
+    """Return an explicit NCBI translation-table ID, resolving ``'auto'``."""
+    auto_table = isinstance(table, str)
+    if auto_table:
+        if table.lower() != "auto":
+            raise ValueError("table must be a valid NCBI genetic-code ID or 'auto'.")
+    elif isinstance(table, bool) or not isinstance(table, int) or table not in Data.CodonTable.unambiguous_dna_by_id:
+        raise ValueError("table must be a valid NCBI genetic-code ID or 'auto'.")
+
+    if auto_table or require_single_record:
+        handle = open(file) if os.path.exists(file) else get_genbank_from_ncbi(file)
+        with handle:
+            table_ids = set()
+            record_count = 0
+            for record in SeqIO.parse(handle, "genbank"):
+                record_count += 1
+                for feature in record.features:
+                    if feature.type != "CDS":
+                        continue
+                    for value in feature.qualifiers.get("transl_table", []):
+                        try:
+                            table_ids.add(int(value))
+                        except (TypeError, ValueError) as error:
+                            raise ValueError(
+                                f"{file}: invalid CDS transl_table value {value!r}."
+                            ) from error
+        if require_single_record and record_count != 1:
+            raise ValueError(
+                f"{file}: expected exactly one GenBank record, found {record_count}. "
+                "Export each record separately."
+            )
+        if auto_table:
+            if len(table_ids) > 1:
+                raise ValueError(
+                    f"{file}: multiple CDS transl_table values found: {sorted(table_ids)}. "
+                    "Pass an explicit table value."
+                )
+            if table_ids:
+                table = table_ids.pop()
+            else:
+                table = 2
+                warnings.warn(
+                    f"{file}: no CDS transl_table qualifier found; using mitochondrial table 2.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+    return table
     
 def get_species_name(string, abbr=True):
     species = re.sub("_", " ", string)
@@ -534,9 +595,188 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
     if start !=None:
         res = reinit_features(res, start = start, force_reoriented=force_reoriented)
     return res
-    
-def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=2,
-                 force_reoriented=False, partition="inherit", default_topology="circular"):
+
+
+def extract_seq(inputfile, isfilename2species=False, abbr=False, table="auto", start=None,
+                force_reoriented=False, include_gene_name=False,
+                number_duplicate_genes=False, strip_terminal_stop=True,
+                output_dir=None, overwrite=False):
+    """
+    Descripton:
+        Parses one mitochondrial GenBank file with :func:`get_features` and
+        exports its genome, genes, CDSs, proteins, tRNAs, rRNAs, and D-loop as
+        FASTA files. The function returns a dictionary of output paths.
+
+    Parameters:
+        inputfile: {str} a GenBank filename or NCBI accession ID.
+        isfilename2species: {False, True, str} use the GenBank organism as the
+            output prefix (False, default), the input filename (True), or a
+            supplied non-empty string as a custom prefix.
+        abbr: {bool} whether to abbreviate a GenBank organism name when it is
+            used as the output prefix. default=False.
+        table: {int, "auto"} NCBI translation-table ID for CDS protein export,
+            or ``"auto"`` to read a shared CDS ``/transl_table`` qualifier
+            from the GenBank file. default="auto".
+        start: {None, str} feature at which to reorient the mitochondrial
+            genome before export, such as ND1 or tRNA-Phe. default=None.
+        force_reoriented: {bool} allow reorientation of a linear genome when
+            ``start`` is specified. default=False.
+        include_gene_name: {bool} include the selected prefix in feature FASTA
+            identifiers, for example ``Homo_sapiens_ND1``. default=False.
+        number_duplicate_genes: {bool} append a position-based index to every
+            repeated gene name, for example ``tRNA-Ser1`` and ``tRNA-Ser2``.
+            default=False.
+        strip_terminal_stop: {bool} remove one terminal ``*`` from each
+            translated protein sequence. default=True.
+        output_dir: {None, str} directory for the seven FASTA files. Defaults
+            to the input file's directory.
+        overwrite: {bool} replace existing output files. default=False.
+    """
+    if not (isfilename2species is False or isfilename2species is True
+            or isinstance(isfilename2species, str)):
+        raise TypeError("isfilename2species must be False, True, or a custom prefix string.")
+    if isinstance(isfilename2species, str) and not isfilename2species.strip():
+        raise ValueError("a custom prefix must be a non-empty string.")
+    if not isinstance(include_gene_name, bool):
+        raise TypeError("include_gene_name must be a bool.")
+    if not isinstance(number_duplicate_genes, bool):
+        raise TypeError("number_duplicate_genes must be a bool.")
+    if not isinstance(strip_terminal_stop, bool):
+        raise TypeError("strip_terminal_stop must be a bool.")
+    if not isinstance(overwrite, bool):
+        raise TypeError("overwrite must be a bool.")
+    table = resolve_translation_table(inputfile, table, require_single_record=True)
+
+    features = get_features(inputfile, abbr=abbr,
+                            isfilename2species=isfilename2species is True,
+                            start=start, force_reoriented=force_reoriented)
+    source = next((feature for feature in features if feature.type == "source"), None)
+    if source is None or source.mtgenome is None:
+        raise ValueError(f"{inputfile}: a source feature with a genome sequence is required.")
+
+    if isfilename2species is True:
+        prefix = os.path.splitext(os.path.basename(inputfile))[0]
+    elif isinstance(isfilename2species, str):
+        prefix = isfilename2species
+    else:
+        prefix = source.name
+    safe_prefix = re.sub(r"[^A-Za-z0-9._-]+", "_", prefix.strip()).strip("._")
+    if not safe_prefix:
+        raise ValueError("prefix must contain at least one filename-safe character.")
+    if output_dir is None:
+        output_dir = os.path.dirname(os.path.abspath(inputfile)) or os.getcwd()
+    os.makedirs(output_dir, exist_ok=True)
+
+    suffixes = {
+        "genome": "mtgenome.fasta",
+        "cds": "cds.fasta",
+        "pep": "pep.fasta",
+        "tRNA": "tRNA.fasta",
+        "rRNA": "rRNA.fasta",
+        "D_loop": "D_loop.fasta",
+    }
+    paths = {name: os.path.join(output_dir, f"{safe_prefix}.{suffix}")
+             for name, suffix in suffixes.items()}
+    existing_paths = [path for path in paths.values() if os.path.exists(path)]
+    if existing_paths and not overwrite:
+        raise FileExistsError(
+            "output file(s) already exist; pass overwrite=True to replace them: "
+            + ", ".join(existing_paths)
+        )
+
+    def record_id(gene_name=None):
+        if gene_name is None or not include_gene_name:
+            return safe_prefix if gene_name is None else gene_name
+        return f"{safe_prefix}_{gene_name}"
+
+    def description(feature_type, location):
+        strand = "+" if location.strand == 1 else "-" if location.strand == -1 else "."
+        return f"type={feature_type} pos=[{int(location.start) + 1}-{int(location.end)}]({strand})"
+
+    def write_fasta(handle, identifier, sequence, feature_type, location):
+        SeqIO.write(
+            SeqRecord(sequence, id=identifier, description=description(feature_type, location)),
+            handle, "fasta",
+        )
+
+    def protein_sequence(sequence, codon_start):
+        coding_sequence = sequence[codon_start - 1:]
+        coding_sequence = coding_sequence[:len(coding_sequence) - len(coding_sequence) % 3]
+        if not coding_sequence:
+            return coding_sequence
+        protein = coding_sequence.translate(table=table, cds=False)
+        start_codons = Data.CodonTable.unambiguous_dna_by_id[table].start_codons
+        if str(coding_sequence[:3]).upper() in start_codons:
+            protein = protein[:0] + "M" + protein[1:]
+        if strip_terminal_stop and str(protein).endswith("*"):
+            protein = protein[:-1]
+        return protein
+
+    seen = set()
+    export_features = []
+    for feature in features:
+        if feature.type in {"source", "Gap"}:
+            continue
+        key = feature_key(feature)
+        if key in seen:
+            continue
+        seen.add(key)
+        location = feature.join if feature.join is not None else feature.location
+        export_features.append((feature, location))
+    export_features.sort(key=lambda item: (int(item[1].start), int(item[1].end), item[0].name))
+    name_counts = Counter(feature.name for feature, _ in export_features)
+    name_indices = Counter()
+
+    temporary_paths = {name: f"{path}.tmp-{uuid4().hex}" for name, path in paths.items()}
+    try:
+        with ExitStack() as stack:
+            outputs = {
+                name: stack.enter_context(open(path, "w", encoding="utf-8"))
+                for name, path in temporary_paths.items()
+            }
+            write_fasta(outputs["genome"], record_id(), source.mtgenome, "genome", source.location)
+
+            for feature, location in export_features:
+                sequence = location.extract(source.mtgenome)
+                name_indices[feature.name] += 1
+                export_name = (f"{feature.name}{name_indices[feature.name]}"
+                               if number_duplicate_genes and name_counts[feature.name] > 1
+                               else feature.name)
+                identifier = record_id(export_name)
+
+                if feature.type == "CDS":
+                    write_fasta(outputs["cds"], identifier, sequence, "CDS", location)
+                    write_fasta(outputs["pep"], identifier,
+                                protein_sequence(sequence, feature.codon_start), "pep", location)
+                elif feature.type == "tRNA":
+                    write_fasta(outputs["tRNA"], identifier, sequence, "tRNA", location)
+                elif feature.type == "rRNA":
+                    write_fasta(outputs["rRNA"], identifier, sequence, "rRNA", location)
+                elif feature.type == "D-loop":
+                    write_fasta(outputs["D_loop"], identifier, sequence, "D-loop", location)
+
+        empty_outputs = [name for name, path in temporary_paths.items() if os.path.getsize(path) == 0]
+        for name, path in temporary_paths.items():
+            os.replace(path, paths[name])
+    except Exception:
+        for path in temporary_paths.values():
+            if os.path.exists(path):
+                os.unlink(path)
+        raise
+
+    if empty_outputs:
+        empty_paths = ", ".join(paths[name] for name in empty_outputs)
+        warnings.warn(
+            f"{inputfile}: no sequences were exported for {', '.join(empty_outputs)}; "
+            f"empty FASTA file(s): {empty_paths}",
+            UserWarning,
+            stacklevel=2,
+        )
+    return paths
+
+def tidy_genbank(file, output=None, isfilename2species=False, start=None, table="auto",
+                 force_reoriented=False, partition="inherit", default_topology="circular",
+                 strip_terminal_stop=True):
     """
     Descripton:
         Use PyVAM's powerful GenBank parser to reorganize the GenBank
@@ -544,7 +784,9 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
     
     Parameters：
         file: {str} a genbankfile or NCBI accession ID.
-        tabe: {int} codon tables. such as 1-6, 9-16, 21-33.
+        table: {int, "auto"} NCBI translation-table ID, or ``"auto"`` to
+            read a shared CDS ``/transl_table`` qualifier from the GenBank
+            file. default="auto".
         start: {None, str} initial feature, such as, ND1, ND2, ND3, ND4, ND4L, ND5, ND6,
                      COX1, COX2, COX3, ATPase6, ATPase8, Cytb, tRNA-His, tRNA-Pro,
                      tRNA-Thr, tRNA-Trp, tRNA-Met, tRNA-Asp, tRNA-Ala, tRNA-Gln,
@@ -557,7 +799,13 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
                     UNA: unannotated, ENV: environmental sample.
         default_topology: {str} topology to use when the input record does not
                                 declare one ("circular" or "linear").
+        strip_terminal_stop: {bool} remove one terminal ``*`` from CDS
+                             translations. default=True.
     """
+    if not isinstance(strip_terminal_stop, bool):
+        raise TypeError("strip_terminal_stop must be a bool.")
+    table = resolve_translation_table(file, table, require_single_record=True)
+
     product = {'ND1': 'NADH dehydrogenase subunit 1',
                'ND2': 'NADH dehydrogenase subunit 2',
                'ND3': 'NADH dehydrogenase subunit 3',
@@ -591,7 +839,7 @@ def tidy_genbank(file, output=None, isfilename2species=False, start=None, table=
         if (feature.codon_start == 1 and complete_start
                 and str(CDS[0:3]) in Data.CodonTable.unambiguous_dna_by_id[table].start_codons):
             pep = "M" + pep[1:]
-        if pep.endswith("*"):
+        if strip_terminal_stop and pep.endswith("*"):
             pep = pep[:-1]
         return pep
 

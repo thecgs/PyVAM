@@ -12,6 +12,7 @@ It provides circular maps, proportional and gene-order linear comparisons, inter
 - [Quick start](#quick-start)
 - [Input and topology](#input-and-topology)
 - [Core functions](#core-functions)
+- [Sequence export](#sequence-export)
 - [Examples](#examples)
 - [Themes](#themes)
 - [Tidy GenBank](#tidy-genbank)
@@ -77,6 +78,7 @@ pyvam.draw_linear_MT(
 | `draw_linear_MT_interactive()` | Produce an interactive proportional Plotly figure. |
 | `draw_linear_MT_nonproportional_interactive()` | Produce an interactive gene-order Plotly figure. |
 | `tidy_genbank()` | Reorient and export a normalized GenBank record. |
+| `extract_seq()` | Export the genome, CDSs, peptides, tRNAs, rRNAs, and D-loop as FASTA files. |
 
 Common options include `colors`, `start`, `force_reoriented`, `remove_NCR`, `default_topology`, `output`, and `dpi`. Run `help(pyvam.draw_circos_MT)` or `help(pyvam.tidy_genbank)` for the full signature.
 
@@ -1347,6 +1349,34 @@ ORIGIN
 //
 </code></pre> 
 </details>
+## Sequence export
+
+`extract_seq()` uses the same annotation normalization as `get_features()` and writes six FASTA files: genome, CDSs, peptides, tRNAs, rRNAs, and D-loop. It returns their paths in a dictionary.
+
+```python
+import pyvam
+
+paths = pyvam.extract_seq(
+    "mitogenome.gbk",
+    isfilename2species=False,  # organism name as the output prefix
+    table="auto",             # read CDS /transl_table from GenBank
+    include_gene_name=True,    # e.g. Homo_sapiens_ND1 in FASTA headers
+    number_duplicate_genes=True,
+)
+print(paths["pep"])
+```
+
+`isfilename2species` controls the output prefix:
+
+- `False` (default): use the GenBank organism name.
+- `True`: use the input filename.
+- A string such as `"Homo_sapiens"`: use that string as a custom prefix.
+
+Use `start="ND1"` and, for linear genomes, `force_reoriented=True` to export a reoriented genome. Set `abbr=True` to abbreviate an organism-name prefix. With `number_duplicate_genes=True`, repeated names are numbered in genomic order, for example `tRNA-Ser1` and `tRNA-Ser2`.
+
+`table` accepts an NCBI translation-table ID or `"auto"`. Auto mode reads a shared CDS `/transl_table` qualifier and reports an error when multiple table values occur. It warns and falls back to mitochondrial table 2 when no CDS table is annotated.
+
+By default, existing output files are protected. Pass `overwrite=True` to replace them. Empty categories (for example, a missing D-loop) still produce an empty FASTA file and a warning that identifies the affected files. Set `strip_terminal_stop=False` to retain a terminal `*` in exported proteins.
 
 ## Testing
 
