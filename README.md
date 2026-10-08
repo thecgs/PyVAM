@@ -87,7 +87,7 @@ For linear genomes, `start` does not rotate the sequence by default; pass `force
 
 ## Browser app
 
-`docs/` contains a static **PyVAM Web** companion for GitHub Pages. It accepts multiple local GenBank files (including multi-record files), renders circular, proportional linear, or gene-order views, and exports SVG. Its parser runs through Pyodide in the browser, so input sequences are not uploaded by the site. See [docs/README.md](docs/README.md) to deploy it with GitHub Pages.
+`docs/` contains a static **PyVAM Web** companion for GitHub Pages. It accepts multiple local GenBank files, renders circular, proportional linear, or gene-order views with PyVAM's own public drawing functions, and exports the resulting Matplotlib SVG. Pyodide runs the renderer locally in the browser, so input sequences are not uploaded by the site. See [docs/README.md](docs/README.md) to deploy it with GitHub Pages.
 
 ## Examples
 

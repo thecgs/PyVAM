@@ -11,14 +11,14 @@
     <header class="site-header">
       <a class="brand" href="https://github.com/thecgs/PyVAM" aria-label="PyVAM repository">PyVAM <span>Web</span></a>
       <p>Multi-GenBank mitochondrial genome explorer</p>
-      <output id="runtime-status" class="status">Preparing local parser…</output>
+      <output id="runtime-status" class="status">Preparing PyVAM…</output>
     </header>
 
     <main class="layout">
       <aside class="controls" aria-label="Plot controls">
         <section>
           <h1>Visualize genomes</h1>
-          <p class="muted">Files are parsed entirely in your browser. Select several GenBank files to compare them side by side.</p>
+          <p class="muted">Files are rendered by PyVAM in your browser. Select several GenBank files to compare them side by side.</p>
           <label class="upload" for="file-input">
             <input id="file-input" type="file" accept=".gb,.gbk,.genbank,.txt" multiple />
             <strong>Choose GenBank files</strong>
@@ -36,25 +36,18 @@
             <label><input type="radio" name="view" value="order" /> Gene order</label>
           </fieldset>
           <label for="theme">Colour scheme</label>
-          <select id="theme">
-            <option value="classic">PyVAM classic</option>
-            <option value="muted">Muted</option>
-            <option value="contrast">High contrast</option>
-          </select>
+          <select id="theme" disabled><option>Loading PyVAM themes…</option></select>
+          <label for="custom-colors">Gene colour overrides</label>
+          <div id="custom-colors" class="colour-editor" aria-live="polite"></div>
+          <p class="muted">Tick a gene to override the selected PyVAM theme, then choose its colour.</p>
           <label for="start-feature">Rotate / align at</label>
-          <select id="start-feature">
-            <option value="origin">GenBank origin</option>
-            <option value="COX1">COX1</option>
-            <option value="ND1">ND1</option>
-            <option value="D-loop">D-loop / control region</option>
-          </select>
+          <select id="start-feature" disabled><option>Loading PyVAM gene names…</option></select>
           <label class="check"><input id="show-labels" type="checkbox" checked /> Show feature labels</label>
-          <label class="check"><input id="show-strands" type="checkbox" checked /> Mark reverse-strand features</label>
         </section>
 
         <section class="actions">
           <button id="render-button" class="primary" type="button">Render view</button>
-          <button id="download-button" type="button" disabled>Download SVG</button>
+          <button id="download-button" type="button" disabled>Download PyVAM SVG</button>
           <button id="reset-button" class="quiet" type="button">Clear files</button>
         </section>
       </aside>
@@ -71,14 +64,13 @@
         <div id="plot" class="plot empty">
           <div>
             <span class="empty-icon">◎</span>
-            <p>Your mitochondrial maps will appear here.</p>
+            <p>Your PyVAM maps will appear here.</p>
           </div>
         </div>
-        <p class="legend"><i class="cds"></i> CDS <i class="trna"></i> tRNA <i class="rrna"></i> rRNA <i class="control"></i> control region <i class="other"></i> other annotation</p>
       </section>
     </main>
 
-    <footer>PyVAM Web is a static GitHub Pages application. GenBank files remain on your device.</footer>
+    <footer>PyVAM Web runs the bundled PyVAM renderer locally through Pyodide. GenBank files remain on your device.</footer>
     <script type="module" src="app.js"></script>
   </body>
 </html>

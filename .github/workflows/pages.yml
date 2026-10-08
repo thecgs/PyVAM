@@ -26,8 +26,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Assemble static site and PyVAM runtime
+        run: |
+          mkdir -p _site/pyvam
+          cp -R docs/. _site/
+          cp pyvam/config.py pyvam/parserGB.py pyvam/drawMT.py _site/pyvam/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
