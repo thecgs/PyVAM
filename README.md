@@ -89,7 +89,7 @@ For linear genomes, `start` does not rotate the sequence by default; pass `force
 
 Use **[PyVAM Web](https://thecgs.github.io/PyVAM/)** for browser-based multi-GenBank visualization.
 
-![PyVAM Web homepage](./doc/PyVAM_website.png)
+![PyVAM Web homepage](./figs/PyVAM_website.png)
 
 `docs/` contains this static GitHub Pages companion. It accepts multiple local GenBank files or NCBI accession IDs, renders circular, proportional linear, or gene-order views with PyVAM's own public drawing functions, and exports SVG, PNG, or PDF figures. Pyodide runs the renderer locally in the browser, so input sequences are not uploaded by the site. See [docs/README.md](docs/README.md) to deploy it with GitHub Pages.
 
@@ -102,10 +102,10 @@ Draw a circular map of *Homo sapiens* using the [OGDRAW](https://chlorobox.mpimp
 ```python
 import pyvam
 
-fig, ax = pyvam.draw_circos_MT("NC_012920.1", colors="OGDRAW", output="./doc/Fig.1.png", dpi=72)
+fig, ax = pyvam.draw_circos_MT("NC_012920.1", colors="OGDRAW", output="./figs/Fig.1.png", dpi=72)
 ```
 
-![](doc/Fig.1.png#pic_center)
+![](figs/Fig.1.png#pic_center)
 
 <p align="center"><em>Fig. 1. Circular mitochondrial map of Homo sapiens.</em></p>
 
@@ -116,10 +116,10 @@ For mitochondrial genomes that are not closed circles (e.g., due to incomplete a
 ```python
 import pyvam
 
-fig, ax = pyvam.draw_circos_MT("MK804157", colors="OGDRAW", output="./doc/Fig.2.png", dpi=72)
+fig, ax = pyvam.draw_circos_MT("MK804157", colors="OGDRAW", output="./figs/Fig.2.png", dpi=72)
 ```
 
-![](doc/Fig.2.png#pic_center)
+![](figs/Fig.2.png#pic_center)
 
 <p align="center"><em>Fig. 2. Circular mitochondrial map of Compsulyx cochereaui.</em></p>
 
@@ -143,12 +143,12 @@ pyvam.add_tag(axs=axs, by_row=True)
 
 axs[2].text(0.5, 0.5, s="Outer circle: Meghimatium pictum\nInner circle: Succinea arundinetorum", size=6, ha='center', va='center', style='italic')
 
-fig.savefig("./doc/Fig.3.png", bbox_inches='tight', dpi=72)
+fig.savefig("./figs/Fig.3.png", bbox_inches='tight', dpi=72)
 ```
 
 The result is shown in the figure below:
 
-![](doc/Fig.3.png#pic_center)
+![](figs/Fig.3.png#pic_center)
 
 <p align="center"><em>Fig. 3. Comparative circular maps of Meghimatium pictum and Succinea arundinetorum.</em></p>
 
@@ -161,12 +161,12 @@ import pyvam
 
 pyvam.draw_linear_MT_nonproportional(files=["MK804148", "MK804158","MK804149", "MK804157"], 
                       start='ND1', add_id=True, dpi=72, force_reoriented=True,
-                      output="./doc/Fig.4.png")
+                      output="./figs/Fig.4.png")
 ```
 
 The result is shown in the figure below:
 
-![](doc/Fig.4.png#pic_center)
+![](figs/Fig.4.png#pic_center)
 
 <p align="center"><em>Fig. 4. Nonproportional linear comparison of mitochondrial gene order.</em></p>
 
@@ -179,12 +179,12 @@ import pyvam
 
 pyvam.draw_linear_MT(files=["MK804148", "MK804158","MK804149", "MK804157"], 
                       start='ND1', add_id=True, dpi=72, force_reoriented=True,
-                      output="./doc/Fig.5.png")
+                      output="./figs/Fig.5.png")
 ```
 
 The result is shown in the figure below:
 
-![](doc/Fig.5.png#pic_center)
+![](figs/Fig.5.png#pic_center)
 
 <p align="center"><em>Fig. 5. Proportional linear comparison of mitochondrial gene order.</em></p>
 
@@ -198,20 +198,20 @@ For nonproportional:
 import pyvam
 
 pyvam.draw_linear_MT_nonproportional_interactive(files=["MK804148", "MK804158", "MK804149", "MK804157"],
-                                                  start='COX1', add_id=True, force_reoriented=True,output="./doc/Fig.6.html")
+                                                  start='COX1', add_id=True, force_reoriented=True,output="./figs/Fig.6.html")
 ```
 
-[View Fig. 6.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/doc/Fig.6.html)
+[View Fig. 6.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/figs/Fig.6.html)
 
 ```python
 import pyvam
 
 pyvam.draw_linear_MT_interactive(files=["MK804148", "MK804158","MK804149", "MK804157"], 
                                   start='COX1', add_id=True, force_reoriented=True,
-                                  output="./doc/Fig.7.html")
+                                  output="./figs/Fig.7.html")
 ```
 
-[View Fig. 7.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/doc/Fig.7.html)
+[View Fig. 7.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/figs/Fig.7.html)
 
 ## Themes
 
@@ -232,10 +232,10 @@ for theme, ax in zip(themes, axes):
                               show_info=False, show_legend=False, show_GC_circos=False, axes=ax)
     ax.text(0.5, 0.5, s=theme, ha='center', va='center')
     
-fig.savefig("./doc/Fig.8.png", bbox_inches='tight', dpi=72)
+fig.savefig("./figs/Fig.8.png", bbox_inches='tight', dpi=72)
 ```
 
-![](doc/Fig.8.png#pic_center)
+![](figs/Fig.8.png#pic_center)
 
 <p align="center"><em>Fig. 8. Built-in visualization themes.</em></p>
 
