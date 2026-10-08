@@ -91,7 +91,11 @@ async function initialise() {
     await state.pyodide.runPythonAsync(runtime);
     populatePyvamOptions(JSON.parse(await state.pyodide.runPythonAsync("pyvam_options()")));
     status("PyVAM renderer ready");
-  } catch (error) { status("PyVAM runtime unavailable"); el.summary.textContent = `Unable to load PyVAM: ${error.message}`; console.error(error); }
+  } catch (error) {
+    status("PyVAM runtime unavailable");
+    el.summary.textContent = `Unable to load PyVAM: ${error.message}. This site must be published through the “Deploy PyVAM Web” GitHub Actions workflow, not directly from /docs.`;
+    console.error(error);
+  }
 }
 
 function updateStats(rows) {
