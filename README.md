@@ -87,7 +87,11 @@ For linear genomes, `start` does not rotate the sequence by default; pass `force
 
 ## Browser app
 
-`docs/` contains a static **PyVAM Web** companion for GitHub Pages. It accepts multiple local GenBank files, renders circular, proportional linear, or gene-order views with PyVAM's own public drawing functions, and exports the resulting Matplotlib SVG. Pyodide runs the renderer locally in the browser, so input sequences are not uploaded by the site. See [docs/README.md](docs/README.md) to deploy it with GitHub Pages.
+Use **[PyVAM Web](https://thecgs.github.io/PyVAM/)** for browser-based multi-GenBank visualization.
+
+![PyVAM Web homepage](./doc/PyVAM_website.png)
+
+`docs/` contains this static GitHub Pages companion. It accepts multiple local GenBank files or NCBI accession IDs, renders circular, proportional linear, or gene-order views with PyVAM's own public drawing functions, and exports SVG, PNG, or PDF figures. Pyodide runs the renderer locally in the browser, so input sequences are not uploaded by the site. See [docs/README.md](docs/README.md) to deploy it with GitHub Pages.
 
 ## Examples
 
@@ -1354,6 +1358,7 @@ ORIGIN
 //
 </code></pre> 
 </details>
+
 ## Sequence export
 
 `extract_seq()` uses the same annotation normalization as `get_features()` and writes six FASTA files: genome, CDSs, peptides, tRNAs, rRNAs, and D-loop. It returns their paths in a dictionary.
