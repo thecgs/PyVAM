@@ -205,6 +205,7 @@ function optionalNumber(id) {
 
 function webOptions() {
   const x = optionalNumber("#legend-x"), y = optionalNumber("#legend-y");
+  const circular = mode() === "circular";
   return {
     abbr: $("#abbr").checked,
     isfilename2species: $("#filename-species").checked,
@@ -213,8 +214,8 @@ function webOptions() {
     add_id: $("#add-id").checked,
     show_legend: $("#show-legend").checked,
     legend_size: optionalNumber("#legend-size"),
-    legend_position: x === null && y === null ? null : [x === null ? 1 : x, y === null ? 0 : y],
-    gene_label_size: optionalNumber("#gene-label-size"),
+    legend_position: x === null && y === null ? (circular ? [1, -0.15] : null) : [x === null ? 1 : x, y === null ? (circular ? -0.15 : 0) : y],
+    gene_label_size: optionalNumber("#gene-label-size") ?? (circular ? 6 : null),
     gene_label_color: $("#gene-label-color").value,
     species_label_size: optionalNumber("#species-label-size"),
     species_label_color: $("#species-label-color").value,
@@ -222,7 +223,7 @@ function webOptions() {
     radius: optionalNumber("#circos-radius"),
     gene_label_inner: $("#gene-label-inner").checked,
     show_info: $("#show-info").checked,
-    info_fontsize: optionalNumber("#info-fontsize"),
+    info_fontsize: optionalNumber("#info-fontsize") ?? (circular ? 9 : null),
     show_xaxis: $("#show-xaxis").checked,
     xaxisfontsize: optionalNumber("#xaxis-fontsize"),
     hspace: optionalNumber("#linear-hspace"),
@@ -239,6 +240,9 @@ function webOptions() {
 
 function updateViewOptions() {
   const view = mode();
+  $("#gene-label-size").placeholder = view === "circular" ? "6" : "PyVAM default";
+  $("#info-fontsize").placeholder = view === "circular" ? "9" : "10";
+  $("#legend-y").placeholder = view === "circular" ? "-0.15" : "0";
   document.querySelectorAll(".linear-option").forEach((node) => { node.hidden = view === "circular"; });
   document.querySelectorAll(".linear-map-option").forEach((node) => { node.hidden = view !== "linear"; });
   document.querySelectorAll(".order-option").forEach((node) => { node.hidden = view !== "order"; });
@@ -343,7 +347,9 @@ async function render() {
     status("PyVAM is rendering…");
     state.pyodide.globals.set("web_paths_json", JSON.stringify(state.files)); state.pyodide.globals.set("web_view", view); state.pyodide.globals.set("web_theme", el.theme.value); state.pyodide.globals.set("web_start", start); state.pyodide.globals.set("web_labels", el.labels.checked); state.pyodide.globals.set("web_custom_colors", JSON.stringify(customColors)); state.pyodide.globals.set("web_options", JSON.stringify(webOptions()));
     state.image = await state.pyodide.runPythonAsync("pyvam_render(web_paths_json, web_view, web_theme, web_start, web_labels, web_custom_colors, web_options)");
-    el.plot.classList.remove("empty"); el.plot.innerHTML = `<img class="pyvam-figure" alt="PyVAM ${esc(view)} rendering" src="data:image/svg+xml;base64,${state.image}" />`;
+    el.plot.classList.remove("empty");
+    el.plot.classList.toggle("single-circular", view === "circular" && state.files.length === 1);
+    el.plot.innerHTML = `<img class="pyvam-figure" alt="PyVAM ${esc(view)} rendering" src="data:image/svg+xml;base64,${state.image}" />`;
     el.title.textContent = view === "order" ? "PyVAM gene-order comparison" : `PyVAM ${view} genome map${state.files.length === 1 ? "" : "s"}`;
     el.note.textContent = `${state.files.length} file${state.files.length === 1 ? "" : "s"} rendered by PyVAM + Matplotlib in this browser.`;
     el.download.disabled = false; el.downloadPng.disabled = false; el.downloadPdf.disabled = false; status(`PyVAM ${PYVAM_VERSION} renderer ready`);
