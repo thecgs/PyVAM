@@ -69,7 +69,7 @@ def pyvam_render(paths_json, view, theme, start, labels, custom_colors_json, opt
     if web["legend_size"] is not None: options["legend_size"] = web["legend_size"]
     if view == "circular":
         columns = min(3, len(paths)); rows = (len(paths) + columns - 1) // columns
-        fig, axes = plt.subplots(rows, columns, subplot_kw={"projection": "polar"}, figsize=(6 * columns, 6 * rows), squeeze=False)
+        fig, axes = plt.subplots(rows, columns, subplot_kw={"projection": "polar"}, figsize=(7 * columns, 7 * rows), squeeze=False)
         for index, (path, axis) in enumerate(zip(paths, axes.flat)):
             circos_options = dict(options, show_gene_label=labels,
                                   show_legend=web["show_legend"] and index == len(paths) - 1,
@@ -189,7 +189,8 @@ function renderSelectedFiles() {
   el.selectedFiles.innerHTML = state.inputs.map((item) => {
     const stateText = item.status === "downloading" ? "Downloading…" : item.status === "error" ? `Failed: ${item.error || "unknown error"}` : item.accession ? `NCBI: ${item.accession}` : "Ready";
     const retry = item.status === "error" && item.accession ? `<button class="retry-file" type="button" data-retry-id="${item.id}">Retry</button>` : "";
-    return `<span class="selected-file"><span title="${esc(item.label)}">${esc(item.label)}</span><small>${esc(stateText)}</small>${retry}<button class="remove-file" type="button" data-input-id="${item.id}" aria-label="Remove ${esc(item.label)}">×</button></span>`;
+    const details = `${item.label}\n${stateText}`;
+    return `<span class="selected-file" title="${esc(details)}"><span>${esc(item.label)}</span>${retry}<button class="remove-file" type="button" data-input-id="${item.id}" aria-label="Remove ${esc(item.label)}">×</button></span>`;
   }).join("");
 }
 
@@ -215,7 +216,7 @@ function webOptions() {
     show_legend: $("#show-legend").checked,
     legend_size: optionalNumber("#legend-size"),
     legend_position: x === null && y === null ? (circular ? [1, -0.15] : null) : [x === null ? 1 : x, y === null ? (circular ? -0.15 : 0) : y],
-    gene_label_size: optionalNumber("#gene-label-size") ?? (circular ? 6 : null),
+    gene_label_size: optionalNumber("#gene-label-size") ?? (circular ? 5 : null),
     gene_label_color: $("#gene-label-color").value,
     species_label_size: optionalNumber("#species-label-size"),
     species_label_color: $("#species-label-color").value,
@@ -240,7 +241,7 @@ function webOptions() {
 
 function updateViewOptions() {
   const view = mode();
-  $("#gene-label-size").placeholder = view === "circular" ? "6" : "PyVAM default";
+  $("#gene-label-size").placeholder = view === "circular" ? "5" : "PyVAM default";
   $("#info-fontsize").placeholder = view === "circular" ? "9" : "10";
   $("#legend-y").placeholder = view === "circular" ? "-0.15" : "0";
   document.querySelectorAll(".linear-option").forEach((node) => { node.hidden = view === "circular"; });
