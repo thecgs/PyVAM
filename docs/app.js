@@ -6,6 +6,7 @@ const state = { pyodide: null, files: [], image: null, options: null, pendingFil
 const mode = () => document.querySelector('input[name="view"]:checked').value;
 const status = (text) => { el.status.textContent = text; };
 const esc = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" })[c]);
+function hexTextColour(hex) { const value = hex.replace("#", ""); const brightness = (Number.parseInt(value.slice(0, 2), 16) * 299 + Number.parseInt(value.slice(2, 4), 16) * 587 + Number.parseInt(value.slice(4, 6), 16) * 114) / 1000; return brightness > 160 ? "#172a32" : "#ffffff"; }
 
 const runtime = String.raw`
 import base64, json, os
@@ -87,7 +88,7 @@ def pyvam_render(paths, view, theme, start, labels, custom_colors_json, options_
 
 function colourEditors(theme) {
   const palette = state.options.class_colours[theme] || {};
-  el.customColors.innerHTML = Object.entries(palette).map(([name, colour]) => `<label class="colour-row" style="--class-color:${esc(colour)}"><span>${esc(name)}</span><input type="color" value="${esc(colour)}" data-class-colour="${esc(name)}" aria-label="${esc(name)} colour" /></label>`).join("");
+  el.customColors.innerHTML = Object.entries(palette).map(([name, colour]) => `<label class="colour-row" style="--class-color:${esc(colour)}"><span class="class-name">${esc(name)}</span><input class="hex-colour" type="color" value="${esc(colour)}" data-class-colour="${esc(name)}" aria-label="${esc(name)} colour" /></label>`).join("");
 }
 
 function populatePyvamOptions(options) {
@@ -164,7 +165,7 @@ async function importFiles(files) {
   if (!state.pyodide) { state.pendingFiles.push(...files); el.summary.textContent = `${state.pendingFiles.length} file(s) queued until PyVAM is ready.`; return; }
   for (const [i, file] of files.entries()) {
     const name = `upload-${Date.now()}-${i}-${file.name.replace(/[^A-Za-z0-9._-]+/g, "_") || "genome.gbk"}`;
-    state.pyodide.FS.writeFile(`/home/${name}`, await file.arrayBuffer());
+    state.pyodide.FS.writeFile(`/home/${name}`, new Uint8Array(await file.arrayBuffer()));
     state.files.push(`/home/${name}`);
   }
   await refreshInputs();
@@ -178,7 +179,7 @@ async function importAccessions(accessions) {
     const endpoint = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=${encodeURIComponent(clean)}&rettype=gb&retmode=text`;
     const response = await fetch(endpoint);
     if (!response.ok) throw new Error(`NCBI returned HTTP ${response.status} for ${clean}`);
-    state.pyodide.FS.writeFile(`/home/ncbi-${clean.replace(/[^A-Za-z0-9._-]+/g, "_")}.gb`, await response.arrayBuffer());
+    state.pyodide.FS.writeFile(`/home/ncbi-${clean.replace(/[^A-Za-z0-9._-]+/g, "_")}.gb`, new Uint8Array(await response.arrayBuffer()));
     state.files.push(`/home/ncbi-${clean.replace(/[^A-Za-z0-9._-]+/g, "_")}.gb`);
   }
   await refreshInputs();
@@ -195,6 +196,8 @@ async function refreshInputs() {
 
 async function render() {
   if (!state.pyodide || !state.files.length) return;
+  const hexInputs = [...document.querySelectorAll(".hex-colour")];
+  if (!hexInputs.every(updateHexInput)) { el.summary.textContent = "Colours must use six-digit hexadecimal form, for example #FFEC00."; return; }
   const view = mode(), start = el.start.value;
   const customColors = Object.fromEntries([...el.customColors.querySelectorAll("[data-class-colour]")]
     .map((picker) => [picker.dataset.classColour, picker.value]));
@@ -221,8 +224,16 @@ el.render.addEventListener("click", render);
 document.querySelectorAll('input[name="view"]').forEach((input) => input.addEventListener("change", () => { updateViewOptions(); render(); }));
 [el.start, el.labels, ...document.querySelectorAll(".option-group input")].forEach((input) => input.addEventListener("change", render));
 el.theme.addEventListener("change", () => { colourEditors(el.theme.value); render(); });
-el.customColors.addEventListener("input", render);
-el.customColors.addEventListener("change", render);
+function updateHexInput(input) {
+  const value = input.value.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(value)) { input.setCustomValidity("Use a six-digit hex colour, for example #FFEC00."); return false; }
+  input.setCustomValidity(""); input.value = value.toUpperCase(); input.style.backgroundColor = input.value; input.style.color = hexTextColour(input.value);
+  if (input.dataset.classColour) input.closest(".colour-row").style.setProperty("--class-color", input.value);
+  return true;
+}
+el.customColors.addEventListener("input", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) render(); });
+el.customColors.addEventListener("change", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) render(); });
+document.querySelectorAll(".hex-colour").forEach((input) => { updateHexInput(input); input.addEventListener("input", () => { if (updateHexInput(input)) render(); }); });
 el.reset.addEventListener("click", () => { state.files = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; });
 el.download.addEventListener("click", () => { if (!state.image) return; const link = Object.assign(document.createElement("a"), { href: `data:image/svg+xml;base64,${state.image}`, download: `pyvam-${mode()}-map.svg` }); link.click(); });
 updateViewOptions();
