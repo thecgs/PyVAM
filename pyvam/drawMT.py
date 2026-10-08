@@ -47,12 +47,17 @@ def custom_colour_legend(colors):
             handles.append(Patch(facecolor=color, edgecolor='black', label=name))
     return handles
 
-def rotation_text(theta):
+def rotation_text(theta, direction=-1):
+    """Return an upright tangential label rotation for a polar direction."""
     d =  (theta * 180 / math.pi)
+    if direction == -1:
+        if d <180:
+            return 90 - d
+        return 270 - d
     if d <180:
-        return 90 - d 
+        return d - 90
     else:
-        return  90 -d + 180
+        return d - 270
 
 def get_GC(seq):
     try:
@@ -255,12 +260,12 @@ def draw_circos_MT(file,
                 ax.bar(theta, 1, width=width, bottom=radius-5, color=feature.color, label=feature.name, linewidth=0.5, edgecolor='black')
                 if show_gene_label:
                     ax.annotate(feature.name,  xy=(theta, radius-4), xytext=(theta, radius-1), arrowprops=dict(arrowstyle="-", connectionstyle="arc3"), 
-                                horizontalalignment='center', verticalalignment='center', fontsize=gene_label_size, rotation=rotation_text(theta))
+                                horizontalalignment='center', verticalalignment='center', fontsize=gene_label_size, rotation=rotation_text(theta, direction))
             elif feature.location.strand == -1:
                 ax.bar(theta, 1, width=width, bottom=radius-6, color=feature.color, label=feature.name, linewidth=0.5, edgecolor='black')
                 if show_gene_label:
                     ax.annotate(feature.name,  xy=(theta, radius-5), xytext=(theta, radius), arrowprops=dict(arrowstyle="-", connectionstyle="arc3"), 
-                                horizontalalignment='center', verticalalignment='center', fontsize=gene_label_size, rotation=rotation_text(theta))
+                                horizontalalignment='center', verticalalignment='center', fontsize=gene_label_size, rotation=rotation_text(theta, direction))
             ax.plot([i* math.pi/180 for i in range(0, 361)], [radius-5]*361, c='black')
         
         else:
@@ -268,12 +273,12 @@ def draw_circos_MT(file,
                 ax.bar(theta, 1, width=width, bottom=radius, color=feature.color, label=feature.name, linewidth=0.5, edgecolor='black')
                 if show_gene_label:
                     ax.annotate(feature.name,  xy=(theta, radius), xytext=(theta, radius-4), arrowprops=dict(arrowstyle="-", connectionstyle="arc3"), 
-                                horizontalalignment='center', verticalalignment='center', fontsize=gene_label_size, rotation=rotation_text(theta))
+                                horizontalalignment='center', verticalalignment='center', fontsize=gene_label_size, rotation=rotation_text(theta, direction))
             else:
                 ax.bar(theta, 1, width=width, bottom=radius-1, color=feature.color, label=feature.name, linewidth=0.5, edgecolor='black')
                 if show_gene_label:
                     ax.annotate(feature.name,  xy=(theta, radius-1), xytext=(theta, radius-5), arrowprops=dict(arrowstyle="-", connectionstyle="arc3"), 
-                                horizontalalignment='center', verticalalignment='center', fontsize=gene_label_size, rotation=rotation_text(theta))
+                                horizontalalignment='center', verticalalignment='center', fontsize=gene_label_size, rotation=rotation_text(theta, direction))
                 
             ax.plot([i* math.pi/180 for i in range(0, 361)], [radius]*361, c='black')
             

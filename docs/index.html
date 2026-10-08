@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A browser-based multi-GenBank mitochondrial genome viewer for PyVAM." />
     <title>PyVAM Web — mitochondrial genome viewer</title>
-    <link rel="stylesheet" href="styles.css?v=202610081620" />
+    <link rel="stylesheet" href="styles.css?v=202610081700" />
   </head>
   <body>
     <header class="site-header">
@@ -30,7 +30,7 @@
           <label for="accession-input">NCBI accession IDs</label>
           <textarea id="accession-input" rows="3" placeholder="NC_012920.1&#10;NC_002333.2&#10;or comma-separated"></textarea>
           <button id="add-accessions" type="button">Add NCBI accessions</button>
-          <p id="file-summary" class="muted">No genomes loaded.</p>
+          <p id="file-summary" class="muted" hidden>No genomes loaded.</p>
         </section>
 
         <section>
@@ -97,6 +97,12 @@
         </section>
       </aside>
 
+      <section class="input-panel" aria-label="Selected GenBank files">
+        <p class="eyebrow">INPUT GENOMES</p>
+        <h2 id="input-title">0 GenBank files</h2>
+        <div id="selected-files" class="selected-files input-files" aria-live="polite">No GenBank files selected.</div>
+      </section>
+
       <section class="workspace" aria-live="polite">
         <div class="workspace-topline">
           <div>
@@ -105,7 +111,6 @@
           </div>
           <p id="plot-note" class="muted">Load one or more annotated genomes to begin.</p>
         </div>
-        <div id="selected-files" class="selected-files workspace-inputs" aria-live="polite">No GenBank files selected.</div>
         <div id="stats" class="stats" aria-label="Loaded genome summaries" hidden></div>
         <div id="plot" class="plot empty">
           <div>
@@ -117,6 +122,6 @@
     </main>
 
     <footer>PyVAM Web runs the bundled PyVAM renderer locally through Pyodide. GenBank files remain on your device.</footer>
-    <script type="module" src="app.js?v=202610081635"></script>
+    <script type="module" src="app.js?v=202610081700"></script>
   </body>
 </html>

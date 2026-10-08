@@ -1,7 +1,7 @@
 const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.5/full/";
 const PYVAM_FILES = ["config.py", "parserGB.py", "drawMT.py"];
 const $ = (s) => document.querySelector(s);
-const el = { files: $("#file-input"), selectedFiles: $("#selected-files"), chooseFiles: $("#choose-files"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
+const el = { files: $("#file-input"), selectedFiles: $("#selected-files"), inputTitle: $("#input-title"), chooseFiles: $("#choose-files"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
 const state = { pyodide: null, files: [], inputs: [], nextInputId: 0, image: null, options: null, classOverrides: {}, pendingFiles: [], pendingAccessions: [] };
 const mode = () => document.querySelector('input[name="view"]:checked').value;
 const status = (text) => { el.status.textContent = text; };
@@ -146,13 +146,27 @@ function updateStats(rows) {
   el.stats.innerHTML = rows.map((r) => `<div class="stat"><strong title="${esc(r.name)}">${esc(r.name)}</strong><span>${Number(r.length).toLocaleString()} bp · ${r.features} PyVAM features</span></div>`).join("");
 }
 
+function safeFilenamePart(value, fallback) {
+  const cleaned = String(value || "").trim().replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^[_\.]+|[_\.]+$/g, "");
+  return cleaned || fallback;
+}
+
+function ncbiFilename(genbankText, accession) {
+  const organism = genbankText.match(/^\s{2}ORGANISM\s+(.+)$/m)?.[1];
+  const species = safeFilenamePart(organism, "species");
+  const stableAccession = safeFilenamePart(accession.replace(/\.\d+$/, ""), "accession");
+  return `${species}_${stableAccession}.gb`;
+}
+
 function addInput(path, label) {
   state.inputs.push({ id: ++state.nextInputId, path, label });
   state.files = state.inputs.map((item) => item.path);
 }
 
 function renderSelectedFiles() {
-  if (!state.inputs.length) { el.selectedFiles.textContent = "No GenBank files selected."; return; }
+  const count = state.inputs.length;
+  el.inputTitle.textContent = `${count} GenBank file${count === 1 ? "" : "s"}`;
+  if (!count) { el.selectedFiles.textContent = "No GenBank files selected."; return; }
   el.selectedFiles.innerHTML = state.inputs.map((item) => `<span class="selected-file"><span title="${esc(item.label)}">${esc(item.label)}</span><button class="remove-file" type="button" data-input-id="${item.id}" aria-label="Remove ${esc(item.label)}">×</button></span>`).join("");
 }
 
@@ -223,8 +237,13 @@ async function importAccessions(accessions) {
     const endpoint = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=${encodeURIComponent(clean)}&rettype=gb&retmode=text`;
     const response = await fetch(endpoint);
     if (!response.ok) throw new Error(`NCBI returned HTTP ${response.status} for ${clean}`);
-    state.pyodide.FS.writeFile(`/home/ncbi-${clean.replace(/[^A-Za-z0-9._-]+/g, "_")}.gb`, new Uint8Array(await response.arrayBuffer()));
-    addInput(`/home/ncbi-${clean.replace(/[^A-Za-z0-9._-]+/g, "_")}.gb`, `NCBI: ${clean}`);
+    const genbankText = await response.text();
+    const name = ncbiFilename(genbankText, clean);
+    const directory = `/home/ncbi/${Date.now()}-${state.nextInputId}`;
+    state.pyodide.FS.mkdirTree(directory);
+    const path = `${directory}/${name}`;
+    state.pyodide.FS.writeFile(path, genbankText);
+    addInput(path, name);
   }
   renderSelectedFiles();
   await refreshInputs();
