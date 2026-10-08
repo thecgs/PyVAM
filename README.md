@@ -13,6 +13,7 @@ It provides circular maps, proportional and gene-order linear comparisons, inter
 - [Input and topology](#input-and-topology)
 - [Core functions](#core-functions)
 - [Sequence export](#sequence-export)
+- [Browser app](#browser-app)
 - [Examples](#examples)
 - [Themes](#themes)
 - [Tidy GenBank](#tidy-genbank)
@@ -83,6 +84,10 @@ pyvam.draw_linear_MT(
 Common options include `colors`, `start`, `force_reoriented`, `remove_NCR`, `default_topology`, `output`, and `dpi`. Run `help(pyvam.draw_circos_MT)` or `help(pyvam.tidy_genbank)` for the full signature.
 
 For linear genomes, `start` does not rotate the sequence by default; pass `force_reoriented=True` to enable rotation explicitly. For circular genomes, `start` selects the new origin without requiring this flag.
+
+## Browser app
+
+`docs/` contains a static **PyVAM Web** companion for GitHub Pages. It accepts multiple local GenBank files (including multi-record files), renders circular, proportional linear, or gene-order views, and exports SVG. Its parser runs through Pyodide in the browser, so input sequences are not uploaded by the site. See [docs/README.md](docs/README.md) to deploy it with GitHub Pages.
 
 ## Examples
 

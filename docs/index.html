@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A browser-based multi-GenBank mitochondrial genome viewer for PyVAM." />
+    <title>PyVAM Web — mitochondrial genome viewer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="https://github.com/thecgs/PyVAM" aria-label="PyVAM repository">PyVAM <span>Web</span></a>
+      <p>Multi-GenBank mitochondrial genome explorer</p>
+      <output id="runtime-status" class="status">Preparing local parser…</output>
+    </header>
+
+    <main class="layout">
+      <aside class="controls" aria-label="Plot controls">
+        <section>
+          <h1>Visualize genomes</h1>
+          <p class="muted">Files are parsed entirely in your browser. Select several GenBank files to compare them side by side.</p>
+          <label class="upload" for="file-input">
+            <input id="file-input" type="file" accept=".gb,.gbk,.genbank,.txt" multiple />
+            <strong>Choose GenBank files</strong>
+            <span>Multiple files supported</span>
+          </label>
+          <p id="file-summary" class="muted">No genomes loaded.</p>
+        </section>
+
+        <section>
+          <h2>Presentation</h2>
+          <fieldset class="segmented" id="view-mode">
+            <legend class="sr-only">View mode</legend>
+            <label><input type="radio" name="view" value="circular" checked /> Circular</label>
+            <label><input type="radio" name="view" value="linear" /> Linear</label>
+            <label><input type="radio" name="view" value="order" /> Gene order</label>
+          </fieldset>
+          <label for="theme">Colour scheme</label>
+          <select id="theme">
+            <option value="classic">PyVAM classic</option>
+            <option value="muted">Muted</option>
+            <option value="contrast">High contrast</option>
+          </select>
+          <label for="start-feature">Rotate / align at</label>
+          <select id="start-feature">
+            <option value="origin">GenBank origin</option>
+            <option value="COX1">COX1</option>
+            <option value="ND1">ND1</option>
+            <option value="D-loop">D-loop / control region</option>
+          </select>
+          <label class="check"><input id="show-labels" type="checkbox" checked /> Show feature labels</label>
+          <label class="check"><input id="show-strands" type="checkbox" checked /> Mark reverse-strand features</label>
+        </section>
+
+        <section class="actions">
+          <button id="render-button" class="primary" type="button">Render view</button>
+          <button id="download-button" type="button" disabled>Download SVG</button>
+          <button id="reset-button" class="quiet" type="button">Clear files</button>
+        </section>
+      </aside>
+
+      <section class="workspace" aria-live="polite">
+        <div class="workspace-topline">
+          <div>
+            <p class="eyebrow">LOCAL • MULTI-GENOME • INTERACTIVE</p>
+            <h2 id="plot-title">Waiting for GenBank files</h2>
+          </div>
+          <p id="plot-note" class="muted">Load one or more annotated genomes to begin.</p>
+        </div>
+        <div id="stats" class="stats" aria-label="Loaded genome summaries"></div>
+        <div id="plot" class="plot empty">
+          <div>
+            <span class="empty-icon">◎</span>
+            <p>Your mitochondrial maps will appear here.</p>
+          </div>
+        </div>
+        <p class="legend"><i class="cds"></i> CDS <i class="trna"></i> tRNA <i class="rrna"></i> rRNA <i class="control"></i> control region <i class="other"></i> other annotation</p>
+      </section>
+    </main>
+
+    <footer>PyVAM Web is a static GitHub Pages application. GenBank files remain on your device.</footer>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
