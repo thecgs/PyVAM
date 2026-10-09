@@ -349,7 +349,7 @@ async function render() {
     state.pyodide.globals.set("web_paths_json", JSON.stringify(state.files)); state.pyodide.globals.set("web_view", view); state.pyodide.globals.set("web_theme", el.theme.value); state.pyodide.globals.set("web_start", start); state.pyodide.globals.set("web_labels", el.labels.checked); state.pyodide.globals.set("web_custom_colors", JSON.stringify(customColors)); state.pyodide.globals.set("web_options", JSON.stringify(webOptions()));
     state.image = await state.pyodide.runPythonAsync("pyvam_render(web_paths_json, web_view, web_theme, web_start, web_labels, web_custom_colors, web_options)");
     el.plot.classList.remove("empty");
-    el.plot.classList.toggle("single-circular", view === "circular" && state.files.length === 1);
+    el.plot.classList.toggle("single-circular", view === "circular" && state.files.length <= 2);
     el.plot.innerHTML = `<img class="pyvam-figure" alt="PyVAM ${esc(view)} rendering" src="data:image/svg+xml;base64,${state.image}" />`;
     el.title.textContent = view === "order" ? "PyVAM gene-order comparison" : `PyVAM ${view} genome map${state.files.length === 1 ? "" : "s"}`;
     el.note.textContent = `${state.files.length} file${state.files.length === 1 ? "" : "s"} rendered by PyVAM + Matplotlib in this browser.`;

@@ -319,7 +319,7 @@ SOURCE      mitochondrion Homo sapiens
             Unclassified.
 REFERENCE   1  (bases 1 to 16581)
   AUTHORS   Chen, G.
-  TITLE     PyVAMR: A Python package for visualizing 
+  TITLE     PyVAM: A Python package for visualizing 
             animal mitochondrial rearrangements.
   JOURNAL   Unpublished
   TITLE     Direct Submission
@@ -827,6 +827,7 @@ ORIGIN
 </code></pre> 
 </details>
 
+
 ```python
 # For the Homo sapiens accession MZ387761, use tRNA-Phe as the starting point.
 
@@ -851,7 +852,7 @@ SOURCE      mitochondrion Homo sapiens
             Unclassified.
 REFERENCE   1  (bases 1 to 16581)
   AUTHORS   Chen, G.
-  TITLE     PyVAMR: A Python package for visualizing 
+  TITLE     PyVAM: A Python package for visualizing 
             animal mitochondrial rearrangements.
   JOURNAL   Unpublished
   TITLE     Direct Submission
@@ -1358,6 +1359,7 @@ ORIGIN
 //
 </code></pre> 
 </details>
+
 
 ## Sequence export
 
