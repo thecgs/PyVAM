@@ -103,11 +103,9 @@
             <span>Multiple files supported</span>
           </button>
         </div>
-        <label for="accession-input">NCBI accession IDs</label>
+        <div class="accession-heading"><label for="accession-input">NCBI accession IDs</label><button id="load-example" class="example-link" type="button" title="Load 18 example mitogenomes (TAN · Gene order)">Load example</button></div>
         <textarea id="accession-input" rows="3" placeholder="NC_012920.1&#10;NC_002333.2&#10;or comma-separated"></textarea>
         <button id="add-accessions" type="button">Add NCBI accessions</button>
-        <button id="load-example" type="button" aria-describedby="example-description">Load example dataset (18 accessions · TAN · Gene order)</button>
-        <p id="example-description" class="muted">Automatically retrieve the example records from NCBI and render a TAN-coloured gene-order comparison. <a href="help.html#example">Example details</a>.</p>
         <p id="file-summary" class="muted" hidden>No genomes loaded.</p>
         <p class="eyebrow input-files-heading">INPUT GENOMES</p>
         <h2 id="input-title">0 GenBank files</h2>
