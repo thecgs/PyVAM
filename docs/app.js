@@ -183,7 +183,7 @@ function stopRenderer() {
 }
 function rendererRequest(type, payload) {
   if (!state.renderer) {
-    const worker = new Worker("./render-worker.js", {name: "pyvam-render"});
+    const worker = new Worker(`./render-worker.js?rev=${encodeURIComponent(PYVAM_COMMIT)}`, {name: "pyvam-render"});
     state.renderer = worker;
     state.rendererInit = null;
     worker._calls = new Map();
