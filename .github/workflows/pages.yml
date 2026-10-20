@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - docs/**
+      - pyvam/**
+      - setup.py
+      - LICENSE.txt
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -31,6 +34,14 @@ jobs:
           mkdir -p _site/pyvam
           cp -R docs/. _site/
           cp pyvam/config.py pyvam/parserGB.py pyvam/drawMT.py _site/pyvam/
+          python - <<'PY'
+          import ast, json, os, pathlib
+          tree = ast.parse(pathlib.Path("setup.py").read_text(encoding="utf-8"))
+          setup = next(n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "setup")
+          version = next(ast.literal_eval(k.value) for k in setup.keywords if k.arg == "version")
+          details = {"version": "v" + version.lstrip("v"), "commit": os.environ["GITHUB_SHA"]}
+          pathlib.Path("_site/build-info.json").write_text(json.dumps(details), encoding="utf-8")
+          PY
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
