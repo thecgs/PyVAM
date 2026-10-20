@@ -12,6 +12,7 @@
     <header class="site-header">
       <a class="brand" href="https://github.com/thecgs/PyVAM" aria-label="PyVAM repository">PyVAM <span>Web</span></a>
       <p>Multi-GenBank mitochondrial genome explorer</p>
+      <a class="repository-link" href="help.html">Help &amp; Tutorial ↗</a>
       <a class="repository-link" href="https://github.com/thecgs/PyVAM" target="_blank" rel="noopener noreferrer">GitHub Repository ↗</a>
       <output id="runtime-status" class="status">Preparing PyVAM…</output>
     </header>
@@ -105,6 +106,8 @@
         <label for="accession-input">NCBI accession IDs</label>
         <textarea id="accession-input" rows="3" placeholder="NC_012920.1&#10;NC_002333.2&#10;or comma-separated"></textarea>
         <button id="add-accessions" type="button">Add NCBI accessions</button>
+        <button id="load-example" type="button" aria-describedby="example-description">Load example dataset (18 accessions · TAN · Gene order)</button>
+        <p id="example-description" class="muted">Automatically retrieve the example records from NCBI and render a TAN-coloured gene-order comparison. <a href="help.html#example">Example details</a>.</p>
         <p id="file-summary" class="muted" hidden>No genomes loaded.</p>
         <p class="eyebrow input-files-heading">INPUT GENOMES</p>
         <h2 id="input-title">0 GenBank files</h2>
@@ -130,7 +133,7 @@
       </section>
     </main>
 
-    <footer>PyVAM Web runs the bundled PyVAM renderer locally through Pyodide. GenBank files remain on your device.</footer>
-    <script type="module" src="app.js?v=202610090900"></script>
+    <footer>PyVAM Web runs the bundled PyVAM renderer locally through Pyodide. GenBank files remain on your device. <a href="help.html">Help &amp; Tutorial</a> · <a href="https://github.com/thecgs/PyVAM/blob/main/LICENSE.txt" target="_blank" rel="noopener noreferrer">MIT License</a>.</footer>
+    <script type="module" src="app.js?v=202610201700"></script>
   </body>
 </html>
