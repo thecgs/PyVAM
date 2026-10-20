@@ -1,6 +1,7 @@
 const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.5/full/";
 const PYVAM_FILES = ["config.py", "parserGB.py", "drawMT.py"];
 const PYVAM_VERSION = "v1.0.3";
+const EXAMPLE_ACCESSIONS = ["MK804158","MK804156","MK804154","MK804151","MK804150","MK804153","MK804152","MK804164","MK784108","MK804148","MK804159","MK804149","MK804157","MK804155","MK804160","MK804163","MK804162","MK804161"];
 const $ = (s) => document.querySelector(s);
 const el = { files: $("#file-input"), selectedFiles: $("#selected-files"), inputTitle: $("#input-title"), chooseFiles: $("#choose-files"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), downloadPng: $("#download-png-button"), downloadPdf: $("#download-pdf-button"), cancel: $("#cancel-button"), progress: $("#task-progress"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
 const state = { pyodide: null, files: [], inputs: [], nextInputId: 0, image: null, options: null, classOverrides: {}, pendingFiles: [], pendingAccessions: [], cancelRequested: false, ncbiController: null };
@@ -149,7 +150,14 @@ async function initialise() {
     populatePyvamOptions(JSON.parse(await state.pyodide.runPythonAsync("pyvam_options()")));
     status(`PyVAM ${PYVAM_VERSION} renderer ready`);
     if (state.pendingFiles.length) await importFiles(state.pendingFiles.splice(0));
-    if (state.pendingAccessions.length) await importAccessions(state.pendingAccessions.splice(0));
+    if (state.pendingAccessions.length) {
+      const pending = state.pendingAccessions.splice(0);
+      if (pending.some((accession) => EXAMPLE_ACCESSIONS.includes(accession))) {
+        const tan = [...el.theme.options].find((option) => option.value.toUpperCase() === "TAN");
+        if (tan) { el.theme.value = tan.value; colourEditors(tan.value); }
+      }
+      await importAccessions(pending);
+    }
   } catch (error) {
     status("PyVAM runtime unavailable");
     el.summary.textContent = `Unable to load PyVAM: ${error.message}. This site must be published through the “Deploy PyVAM Web” GitHub Actions workflow, not directly from /docs.`;
@@ -384,6 +392,38 @@ el.addAccessions.addEventListener("click", async () => {
   if (!accessions.length) { el.summary.textContent = "Enter one or more NCBI nucleotide accession IDs first."; return; }
   try { await importAccessions(accessions); el.accessions.value = ""; }
   catch (error) { if (error.name !== "AbortError") { el.summary.textContent = `Could not retrieve NCBI accession(s): ${error.message}`; console.error(error); } status(`PyVAM ${PYVAM_VERSION} renderer ready`); }
+});
+el.example = $("#load-example");
+el.example.addEventListener("click", async () => {
+  // Keep accession IDs visible for reproducibility; importAccessions will skip IDs already loaded.
+  el.accessions.value = EXAMPLE_ACCESSIONS.join("\n");
+  const orderRadio = document.querySelector('input[name="view"][value="order"]');
+  orderRadio.checked = true;
+  updateViewOptions();
+  if (!state.pyodide) {
+    state.pendingAccessions.push(...EXAMPLE_ACCESSIONS);
+    el.summary.textContent = "Example queued: 18 NCBI accessions. Waiting for PyVAM to initialize…";
+    return;
+  }
+  const tanTheme = [...el.theme.options].find((option) => option.value.toUpperCase() === "TAN");
+  if (tanTheme) {
+    el.theme.value = tanTheme.value;
+    colourEditors(tanTheme.value);
+  } else {
+    el.summary.textContent = "The TAN palette is unavailable in this PyVAM build.";
+    return;
+  }
+  el.example.disabled = true;
+  try {
+    await importAccessions(EXAMPLE_ACCESSIONS);
+  } catch (error) {
+    if (error.name !== "AbortError") {
+      el.summary.textContent = `Example download failed: ${error.message}`;
+      console.error(error);
+    }
+  } finally {
+    el.example.disabled = false;
+  }
 });
 el.render.addEventListener("click", render);
 el.cancel.addEventListener("click", () => { state.cancelRequested = true; state.ncbiController?.abort(); setTaskProgress("Cancellation requested…"); });
