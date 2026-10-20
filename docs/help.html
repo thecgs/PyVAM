@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="PyVAM Web help, input formats, tutorials, examples and interpretation guidance." />
+  <title>Help & Tutorial — PyVAM Web</title>
+  <link rel="icon" href="ico.svg?v=6" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css?v=202610081905" />
+  <style>
+    .help-shell{max-width:940px;margin:0 auto;padding:clamp(1rem,3vw,2.5rem);line-height:1.7}
+    .help-shell h1,.help-shell h2,.help-shell h3{line-height:1.25;margin-top:1.8em}
+    .help-shell h1{margin-top:.4em}.help-shell p,.help-shell li{max-width:85ch}
+    .help-shell a{text-decoration:underline}.help-shell code{overflow-wrap:anywhere}
+    .help-shell table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}
+    .help-shell th,.help-shell td{border:1px solid #a5abb0;padding:.6rem;text-align:left;vertical-align:top}
+    .help-nav{display:flex;gap:1.1rem;flex-wrap:wrap;padding-block:1rem}
+    .help-note{border-left:4px solid #8b7964;padding:.8rem 1rem;background:rgba(139,121,100,.09)}
+  </style>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="./" aria-label="Return to PyVAM Web">PyVAM <span>Web</span></a>
+  <p>Help &amp; Tutorial</p>
+  <a class="repository-link" href="https://github.com/thecgs/PyVAM" target="_blank" rel="noopener noreferrer">GitHub Repository ↗</a>
+</header>
+<main class="help-shell">
+  <nav class="help-nav" aria-label="Tutorial sections">
+    <a href="#quick-start">Quick start</a><a href="#example">Example dataset</a><a href="#inputs">Input formats</a>
+    <a href="#views">Views &amp; interpretation</a><a href="#options">Options</a><a href="#export">Export</a>
+    <a href="#troubleshooting">Troubleshooting</a><a href="#privacy">Privacy</a>
+  </nav>
+  <h1>Using PyVAM Web</h1>
+  <p>PyVAM Web is an interactive, browser-based viewer for annotated animal mitochondrial genomes. It uses PyVAM's Python rendering functions through Pyodide to produce circular maps, coordinate-scaled linear maps, and non-proportional gene-order diagrams. It does not infer phylogenetic trees or mitochondrial rearrangement events.</p>
+  <h2 id="quick-start">1. Quick start</h2>
+  <ol>
+    <li>Open <a href="./">PyVAM Web</a> and wait until the runtime status reports the renderer is ready. The first visit may take longer while Python packages download.</li>
+    <li>Click <strong>Load example dataset</strong> to load the 18 accession IDs listed below, automatically choose <strong>Gene order</strong> and the <strong>TAN</strong> colour theme, and begin retrieving GenBank records from NCBI. Alternatively, select your own GenBank files or paste NCBI nucleotide accession IDs.</li>
+    <li>Wait for the download and rendering status. Each selected accession has a separate status; failed accessions may be retried individually. Loading 18 records can take time because requests are processed sequentially.</li>
+    <li>Switch between <strong>Circular</strong>, <strong>Linear</strong>, and <strong>Gene order</strong>, change colours and labels, and select <strong>Rotate / align at</strong> to choose a shared gene anchor.</li>
+    <li>Use <strong>Download PyVAM SVG</strong>, <strong>Download PNG (300 dpi)</strong> or <strong>Download PDF</strong> to save the current figure.</li>
+  </ol>
+  <h2 id="example">2. Example: comparative gene-order view</h2>
+  <p>The built-in demonstration requests the following 18 NCBI nucleotide accessions, in the supplied order. The button fills the accession text field, selects the Gene order view and TAN colour scheme, and starts retrieval and rendering automatically.</p>
+  <p><code>MK804158, MK804156, MK804154, MK804151, MK804150, MK804153, MK804152, MK804164, MK784108, MK804148, MK804159, MK804149, MK804157, MK804155, MK804160, MK804163, MK804162, MK804161</code></p>
+  <p><a href="https://www.ncbi.nlm.nih.gov/nuccore/?term=MK804158%20OR%20MK804156%20OR%20MK804154%20OR%20MK804151%20OR%20MK804150%20OR%20MK804153%20OR%20MK804152%20OR%20MK804164%20OR%20MK784108%20OR%20MK804148%20OR%20MK804159%20OR%20MK804149%20OR%20MK804157%20OR%20MK804155%20OR%20MK804160%20OR%20MK804163%20OR%20MK804162%20OR%20MK804161" target="_blank" rel="noopener noreferrer">Inspect example records at NCBI Nucleotide</a>. The example requires internet access to NCBI; PyVAM does not bundle the GenBank files. These identifiers are provided as demonstration inputs and are not independently reannotated or validated by PyVAM.</p>
+  <p class="help-note"><strong>How to interpret the result:</strong> compare gene labels, strand directions and their relative order between records. A visually different arrangement is an annotation-based observation, not proof of a particular duplication, loss, transposition or evolutionary history. Confirm candidate differences against the original records and independent annotations where relevant.</p>
+  <h2 id="inputs">3. Input formats and data preparation</h2>
+  <ul>
+    <li><strong>Local GenBank files:</strong> choose one or more annotated files with <code>.gb</code>, <code>.gbk</code>, <code>.genbank</code> or <code>.txt</code> extensions. Records must contain recognizable genomic features; raw FASTA sequence is not a substitute for annotation.</li>
+    <li><strong>NCBI accessions:</strong> paste a list separated by newlines, commas, semicolons or spaces and click <strong>Add NCBI accessions</strong>. NCBI E-utilities supplies GenBank text when requests succeed.</li>
+    <li><strong>Species labels:</strong> choose <strong>Use filename as species name</strong> to display file-derived names rather than record-derived names. <strong>Add accession ID</strong> appends accession identifiers where supported.</li>
+    <li><strong>Missing or inconsistent features:</strong> plots reflect available annotations; PyVAM is not a de novo mitochondrial genome annotator. Review suspicious gene labels, absent genes and fragment boundaries.</li>
+  </ul>
+  <h2 id="views">4. Views and biological interpretation</h2>
+  <table>
+    <thead><tr><th>View</th><th>Purpose</th><th>Limitations</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Circular</strong></td><td>Visualize annotated features on individual mitochondrial genome circles, with optional GC-content ring.</td><td>The reference start position is chosen for presentation; apparent differences can reflect alternative GenBank origins.</td></tr>
+      <tr><td><strong>Linear</strong></td><td>Compare annotated genes along a genome-length coordinate axis; useful for relative span and location.</td><td>Genome length and coordinate conventions matter; incomplete or linear genomes should not be assumed circular.</td></tr>
+      <tr><td><strong>Gene order</strong></td><td>Display gene arrangement schematically without proportional gene lengths; useful for comparing relative order across genomes.</td><td>Not an inferred ancestral gene order or event reconstruction. Repeated labels indicate annotations that should be checked for true gene duplications.</td></tr>
+    </tbody>
+  </table>
+  <h2 id="options">5. Figure settings</h2>
+  <p><strong>Colour scheme</strong> selects a built-in PyVAM palette such as TAN; <strong>Gene Class Colors</strong> optionally overrides colours for classes of genes. <strong>Rotate / align at</strong> specifies the visual reference gene when supported. Gene labels, font sizes, legend placement, and species-name options change presentation, not annotations.</p>
+  <p><strong>Remove D-loop / NCR</strong> suppresses the control/noncoding region in the display. <strong>Force reorientation for linear genomes</strong> changes presentation of linear records and should be used only if its interpretation is appropriate. For circular plots, controls include label placement, drawing direction and GC-ring parameters. For linear maps, options include axis visibility and inter-row spacing. Gene-order diagrams have a separate box-height control.</p>
+  <h2 id="export">6. Export and reproducibility</h2>
+  <p>Exports reflect the last successfully rendered view. SVG and PDF are vector-oriented outputs from Matplotlib; PNG is rendered at 300 dpi. Record your input accession numbers or GenBank files, PyVAM version, selected view, colour scheme and relevant display options when preparing publication figures.</p>
+  <h2 id="troubleshooting">7. Troubleshooting</h2>
+  <table>
+    <thead><tr><th>Problem</th><th>What to try</th></tr></thead>
+    <tbody>
+      <tr><td>Runtime stays on “Preparing PyVAM…” or fails</td><td>Check network access to the Pyodide CDN, reload and use an up-to-date desktop Chrome or Firefox browser.</td></tr>
+      <tr><td>NCBI record fails to download</td><td>Verify the accession at NCBI, retry the failed item, or download its GenBank file manually and upload it. NCBI may limit request rates or network access.</td></tr>
+      <tr><td>A figure does not render</td><td>Check that each file is valid annotated GenBank, remove the problematic record and retry with fewer inputs. Inspect on-page errors.</td></tr>
+      <tr><td>Large batches take too long</td><td>Try a smaller selection and keep the browser tab open while Pyodide renders. The current page runs Python computations within the browser.</td></tr>
+      <tr><td>Unexpected gene-order differences</td><td>Inspect original gene names, strand annotations, duplicated features and record completeness; alignment of drawing origins is not rearrangement inference.</td></tr>
+      <tr><td>Wrong species names</td><td>Toggle <strong>Use filename as species name</strong> or review the <code>ORGANISM</code> and accession annotations.</td></tr>
+    </tbody>
+  </table>
+  <h2 id="privacy">8. Privacy, availability and citation</h2>
+  <p>Locally selected files are written to Pyodide's in-memory filesystem and are not intentionally uploaded to a PyVAM server. Retrieving NCBI accessions sends requests to NCBI, and first-time runtime initialization downloads packages from a CDN. The application does not require an account.</p>
+  <p>PyVAM source code is publicly available under the <a href="https://github.com/thecgs/PyVAM/blob/main/LICENSE.txt" target="_blank" rel="noopener noreferrer">MIT License</a>. For versions, documentation, reproducibility and issue reporting, see the <a href="https://github.com/thecgs/PyVAM" target="_blank" rel="noopener noreferrer">PyVAM GitHub repository</a>. Cite the software release and its associated publication when available.</p>
+  <p><a href="./">← Return to PyVAM Web</a></p>
+</main>
+</body>
+</html>
