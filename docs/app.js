@@ -172,7 +172,11 @@ async function initialise() {
 
 function stopRenderer() {
   state.renderSequence += 1;
-  if (state.renderer) state.renderer.terminate();
+  if (state.renderer) {
+    for (const call of state.renderer._calls.values()) call.reject(new DOMException("Rendering cancelled", "AbortError"));
+    state.renderer._calls.clear();
+    state.renderer.terminate();
+  }
   state.renderer = null;
   state.rendererInit = null;
   state.activeRender = false;
