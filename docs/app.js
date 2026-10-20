@@ -1,11 +1,11 @@
 const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.5/full/";
 const PYVAM_FILES = ["config.py", "parserGB.py", "drawMT.py"];
-let PYVAM_VERSION = "unversioned";
+let PYVAM_VERSION = "v1.0.3";
 let PYVAM_COMMIT = "unknown";
 const EXAMPLE_ACCESSIONS = ["MK804158","MK804156","MK804154","MK804151","MK804150","MK804153","MK804152","MK804164","MK784108","MK804148","MK804159","MK804149","MK804157","MK804155","MK804160","MK804163","MK804162","MK804161"];
 const $ = (s) => document.querySelector(s);
 const el = { files: $("#file-input"), selectedFiles: $("#selected-files"), inputTitle: $("#input-title"), chooseFiles: $("#choose-files"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), downloadPng: $("#download-png-button"), downloadPdf: $("#download-pdf-button"), cancel: $("#cancel-button"), progress: $("#task-progress"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
-const state = { pyodide: null, files: [], inputs: [], nextInputId: 0, image: null, options: null, classOverrides: {}, pendingFiles: [], pendingAccessions: [], cancelRequested: false, ncbiController: null, renderer: null, rendererInit: null, renderSequence: 0, activeRender: false };
+const state = { pyodide: null, files: [], inputs: [], nextInputId: 0, image: null, options: null, classOverrides: {}, pendingFiles: [], pendingAccessions: [], cancelRequested: false, ncbiController: null };
 const mode = () => document.querySelector('input[name="view"]:checked').value;
 const status = (text) => { el.status.textContent = text; };
 const esc = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" })[c]);
@@ -135,11 +135,15 @@ function populatePyvamOptions(options) {
 
 async function initialise() {
   try {
-    await new Promise((ok, fail) => { const tag = document.createElement("script"); tag.src = `${PYODIDE_URL}pyodide.js`; tag.onload = ok; tag.onerror = fail; document.head.append(tag); });
     try {
-      const metaResponse = await fetch("./build-info.json", {cache:"no-store"});
-      if (metaResponse.ok) { const meta = await metaResponse.json(); PYVAM_VERSION = meta.version || PYVAM_VERSION; PYVAM_COMMIT = meta.commit || PYVAM_COMMIT; }
-    } catch (error) { console.warn("Build metadata unavailable", error); }
+      const response = await fetch("./build-info.json", {cache: "no-store"});
+      if (response.ok) {
+        const metadata = await response.json();
+        if (typeof metadata.version === "string") PYVAM_VERSION = metadata.version;
+        if (typeof metadata.commit === "string") PYVAM_COMMIT = metadata.commit;
+      }
+    } catch (error) { console.warn("Unable to load build version metadata", error); }
+    await new Promise((ok, fail) => { const tag = document.createElement("script"); tag.src = `${PYODIDE_URL}pyodide.js`; tag.onload = ok; tag.onerror = fail; document.head.append(tag); });
     state.pyodide = await window.loadPyodide({ indexURL: PYODIDE_URL });
     status("Loading PyVAM runtime…");
     await state.pyodide.loadPackage(["matplotlib", "biopython"]);
@@ -153,7 +157,7 @@ async function initialise() {
     await state.pyodide.runPythonAsync("import sys; sys.path.insert(0, '/home')");
     await state.pyodide.runPythonAsync(runtime);
     populatePyvamOptions(JSON.parse(await state.pyodide.runPythonAsync("pyvam_options()")));
-    status(`PyVAM ${PYVAM_VERSION} (${PYVAM_COMMIT.slice(0, 7)}) ready`);
+    status(`PyVAM ${PYVAM_VERSION} (${PYVAM_COMMIT.slice(0, 7)}) renderer ready`);
     if (state.pendingFiles.length) await importFiles(state.pendingFiles.splice(0));
     if (state.pendingAccessions.length) {
       const pending = state.pendingAccessions.splice(0);
@@ -168,52 +172,6 @@ async function initialise() {
     el.summary.textContent = `Unable to load PyVAM: ${error.message}. This site must be published through the “Deploy PyVAM Web” GitHub Actions workflow, not directly from /docs.`;
     console.error(error);
   }
-}
-
-function stopRenderer() {
-  state.renderSequence += 1;
-  if (state.renderer) {
-    for (const call of state.renderer._calls.values()) call.reject(new DOMException("Rendering cancelled", "AbortError"));
-    state.renderer._calls.clear();
-    state.renderer.terminate();
-  }
-  state.renderer = null;
-  state.rendererInit = null;
-  state.activeRender = false;
-}
-function rendererRequest(type, payload) {
-  if (!state.renderer) {
-    const worker = new Worker(`./render-worker.js?rev=${encodeURIComponent(PYVAM_COMMIT)}`, {name: "pyvam-render"});
-    state.renderer = worker;
-    state.rendererInit = null;
-    worker._calls = new Map();
-    worker._nextId = 0;
-    worker.onmessage = ({data}) => {
-      const call = worker._calls.get(data.id);
-      if (!call) return;
-      worker._calls.delete(data.id);
-      if (data.ok) call.resolve(data.result); else call.reject(new Error(data.error));
-    };
-    worker.onerror = (event) => {
-      for (const call of worker._calls.values()) call.reject(new Error(event.message || "Rendering worker failed"));
-      worker._calls.clear();
-    };
-  }
-  const worker = state.renderer;
-  return new Promise((resolve, reject) => {
-    const id = ++worker._nextId;
-    worker._calls.set(id, {resolve, reject});
-    worker.postMessage({id, type, payload});
-  });
-}
-async function ensureRenderer() {
-  if (!state.rendererInit) state.rendererInit = rendererRequest("init", {runtime});
-  await state.rendererInit;
-}
-async function workerRender(globals, paths) {
-  await ensureRenderer();
-  const files = paths.map((path) => ({path, content: state.pyodide.FS.readFile(path)}));
-  return rendererRequest("render", {files, globals});
 }
 
 function updateStats(rows) {
@@ -394,46 +352,29 @@ async function validateInputs() {
 }
 
 async function render() {
-  if (!state.pyodide || !state.files.length || state.activeRender) return;
+  if (!state.pyodide || !state.files.length) return;
   const hexInputs = [...document.querySelectorAll(".hex-colour")];
   if (!hexInputs.every(updateHexInput)) { el.summary.textContent = "Colours must use six-digit hexadecimal form, for example #FFEC00."; return; }
-  const sequence = ++state.renderSequence;
   const view = mode(), start = el.start.value;
-  const paths = [...state.files];
-  state.activeRender = true;
+  const customColors = state.classOverrides;
   el.render.disabled = true;
-  beginTask(`Rendering ${paths.length} genome(s)…`);
   try {
-    status("PyVAM is rendering in a background worker…");
-    const encoded = await workerRender({
-      web_paths_json: JSON.stringify(paths),
-      web_view: view, web_theme: el.theme.value,
-      web_start: start, web_labels: el.labels.checked,
-      web_custom_colors: JSON.stringify(state.classOverrides),
-      web_options: JSON.stringify(webOptions())
-    }, paths);
-    if (sequence !== state.renderSequence) return;
-    state.image = encoded;
+    await validateInputs();
+    ensureNotCancelled();
+    beginTask(`Rendering ${state.files.length} genome map${state.files.length === 1 ? "" : "s"}…`);
+    status("PyVAM is rendering…");
+    state.pyodide.globals.set("web_paths_json", JSON.stringify(state.files)); state.pyodide.globals.set("web_view", view); state.pyodide.globals.set("web_theme", el.theme.value); state.pyodide.globals.set("web_start", start); state.pyodide.globals.set("web_labels", el.labels.checked); state.pyodide.globals.set("web_custom_colors", JSON.stringify(customColors)); state.pyodide.globals.set("web_options", JSON.stringify(webOptions()));
+    state.image = await state.pyodide.runPythonAsync("pyvam_render(web_paths_json, web_view, web_theme, web_start, web_labels, web_custom_colors, web_options)");
     el.plot.classList.remove("empty");
-    el.plot.classList.toggle("single-circular", view === "circular" && paths.length <= 2);
-    el.plot.innerHTML = `<img class="pyvam-figure" alt="PyVAM ${esc(view)} rendering" src="data:image/svg+xml;base64,${encoded}" />`;
-    el.title.textContent = view === "order" ? "PyVAM gene-order comparison" : `PyVAM ${view} genome map${paths.length === 1 ? "" : "s"}`;
-    el.note.textContent = `${paths.length} file${paths.length === 1 ? "" : "s"} rendered in your browser.`;
-    el.download.disabled = false; el.downloadPng.disabled = false; el.downloadPdf.disabled = false;
-    status(`PyVAM ${PYVAM_VERSION} renderer ready`);
+    el.plot.classList.toggle("single-circular", view === "circular" && state.files.length <= 2);
+    el.plot.innerHTML = `<img class="pyvam-figure" alt="PyVAM ${esc(view)} rendering" src="data:image/svg+xml;base64,${state.image}" />`;
+    el.title.textContent = view === "order" ? "PyVAM gene-order comparison" : `PyVAM ${view} genome map${state.files.length === 1 ? "" : "s"}`;
+    el.note.textContent = `${state.files.length} file${state.files.length === 1 ? "" : "s"} rendered by PyVAM + Matplotlib in this browser.`;
+    el.download.disabled = false; el.downloadPng.disabled = false; el.downloadPdf.disabled = false; status(`PyVAM ${PYVAM_VERSION} renderer ready`);
   } catch (error) {
-    if (sequence !== state.renderSequence) return;
-    el.summary.textContent = `PyVAM rendering failed: ${error.message}`;
-    status("PyVAM render failed");
-    console.error(error);
-    stopRenderer();
-  } finally {
-    if (sequence === state.renderSequence) {
-      state.activeRender = false;
-      endTask();
-      el.render.disabled = false;
-    }
-  }
+    if (error.name === "AbortError") { el.summary.textContent = "PyVAM task cancelled."; status(`PyVAM ${PYVAM_VERSION} renderer ready`); }
+    else { el.summary.textContent = `PyVAM rendering failed: ${error.message}`; status("PyVAM render failed"); console.error(error); }
+  } finally { endTask(); el.render.disabled = false; }
 }
 
 el.files.addEventListener("change", (event) => { const files = [...event.target.files]; event.target.value = ""; if (files.length) { el.selectedFiles.textContent = files.map((file) => file.webkitRelativePath || file.name).join("\n"); el.summary.textContent = `${files.length} file(s) selected; importing…`; } importFiles(files); });
@@ -494,7 +435,7 @@ el.example.addEventListener("click", async () => {
   }
 });
 el.render.addEventListener("click", render);
-el.cancel.addEventListener("click", () => { state.cancelRequested = true; state.ncbiController?.abort(); if (state.activeRender) { stopRenderer(); el.summary.textContent = "Rendering cancelled. You can render again."; status("Rendering cancelled"); el.render.disabled = false; endTask(); } else { setTaskProgress("Cancellation requested…"); } });
+el.cancel.addEventListener("click", () => { state.cancelRequested = true; state.ncbiController?.abort(); setTaskProgress("Cancellation requested…"); });
 document.querySelectorAll('input[name="view"]').forEach((input) => input.addEventListener("change", () => { updateViewOptions(); render(); }));
 [el.start, el.labels, ...document.querySelectorAll(".option-group input, .option-group select")].forEach((input) => input.addEventListener("change", () => { updateViewOptions(); render(); }));
 el.theme.addEventListener("change", () => { colourEditors(el.theme.value); render(); });
@@ -508,15 +449,14 @@ function updateHexInput(input) {
 el.customColors.addEventListener("input", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) { state.classOverrides[event.target.dataset.classColour] = event.target.value; render(); } });
 el.customColors.addEventListener("change", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) { state.classOverrides[event.target.dataset.classColour] = event.target.value; render(); } });
 document.querySelectorAll(".hex-colour").forEach((input) => { updateHexInput(input); input.addEventListener("input", () => { if (updateHexInput(input)) render(); }); });
-el.reset.addEventListener("click", () => { if (state.activeRender) stopRenderer(); state.ncbiController?.abort(); state.files = []; state.inputs = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; renderSelectedFiles(); el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; el.downloadPng.disabled = true; el.downloadPdf.disabled = true; });
+el.reset.addEventListener("click", () => { state.ncbiController?.abort(); state.files = []; state.inputs = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; renderSelectedFiles(); el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; el.downloadPng.disabled = true; el.downloadPdf.disabled = true; });
 el.download.addEventListener("click", () => { if (!state.image) return; const link = Object.assign(document.createElement("a"), { href: `data:image/svg+xml;base64,${state.image}`, download: `pyvam-${mode()}-map.svg` }); link.click(); });
 async function exportFigure(format) {
   if (!state.image) return;
   const button = format === "png" ? el.downloadPng : el.downloadPdf;
   button.disabled = true; status(`Exporting ${format.toUpperCase()}…`);
   try {
-    await ensureRenderer();
-    const encoded = await rendererRequest("export", {format});
+    const encoded = await state.pyodide.runPythonAsync(`pyvam_export(${JSON.stringify(format)})`);
     const mime = format === "png" ? "image/png" : "application/pdf";
     const link = Object.assign(document.createElement("a"), { href: `data:${mime};base64,${encoded}`, download: `pyvam-${mode()}-map.${format}` }); link.click();
     status(`PyVAM ${PYVAM_VERSION} renderer ready`);
