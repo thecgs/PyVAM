@@ -17,7 +17,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pyvam import get_features, draw_circos_MT, draw_linear_MT, draw_linear_MT_nonproportional
-from pyvam.config import MTColors, CommonNamesDict
+from pyvam.config import MTColors, CommonNamesDict, FullName2AbbrName
 from pyvam.parserGB import RotationWarning
 
 GENE_CLASSES = {
@@ -35,6 +35,7 @@ def pyvam_options():
     return json.dumps({
         "themes": sorted(MTColors),
         "markers": sorted(set(CommonNamesDict.values()), key=str.casefold),
+        "marker_labels": {name: f"{name} = {abbr}" for name, abbr in FullName2AbbrName.items() if name.startswith("tRNA-")},
         "class_colours": {theme: {klass: palette.get(members[0], palette.get("Other genes", "#808080"))[:7] for klass, members in GENE_CLASSES.items()} for theme, palette in MTColors.items()},
     })
 
@@ -138,7 +139,7 @@ function populatePyvamOptions(options) {
   el.theme.innerHTML = options.themes.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
   el.theme.value = options.themes.includes("MITOFISH") ? "MITOFISH" : options.themes[0];
   el.theme.disabled = false;
-  el.start.innerHTML = `<option value="">GenBank origin</option>${options.markers.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("")}`;
+  el.start.innerHTML = `<option value="">GenBank origin</option>${options.markers.map((name) => `<option value="${esc(name)}">${esc(options.marker_labels[name] || name)}</option>`).join("")}`;
   el.start.disabled = false;
   colourEditors(el.theme.value);
 }
