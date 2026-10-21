@@ -163,7 +163,9 @@ def test_web_runtime_selected_cp_palette_and_warning(tmp_path, view):
     exec(runtime, ns)
     options = json.loads(ns["pyvam_options"]())
     assert "OGDRAW_CP" in options["themes"] and "AUTO" not in options["themes"]
-    assert "rbcL" in options["markers"]
+    assert "rbcL" not in options["markers"]
+    assert "rbcL" in options["cp_markers"]
+    assert set(options["markers"]).issubset(options["cp_markers"])
     assert options["class_colours"]["OGDRAW_CP"]["photosystem I"] == "#00662C"
     web = {key: None for key in re.findall(r'web\["([^\"]+)"\]', runtime)}
     web.update(dict.fromkeys(["gene_label_color", "species_label_size", "species_label_color", "height",

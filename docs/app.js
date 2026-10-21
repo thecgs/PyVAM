@@ -43,7 +43,8 @@ def classes_for_theme(theme):
 def pyvam_options():
     return json.dumps({
         "themes": sorted(MTColors),
-        "markers": sorted(set(CommonNamesDict.values()) | set(CommonNamesDict_cp.values()), key=str.casefold),
+        "markers": sorted(set(CommonNamesDict.values()), key=str.casefold),
+        "cp_markers": sorted(set(CommonNamesDict.values()) | set(CommonNamesDict_cp.values()), key=str.casefold),
         "marker_labels": {name: f"{name} = {abbr}" for name, abbr in FullName2AbbrName.items() if name.startswith("tRNA-")},
         "class_colours": {theme: {klass: palette.get(members[0], palette.get("Other genes", "#808080"))[:7] for klass, members in classes_for_theme(theme).items() if members} for theme, palette in MTColors.items()},
     })
@@ -138,7 +139,18 @@ def pyvam_export(output_format):
     with open(output, "rb") as handle: return base64.b64encode(handle.read()).decode("ascii")
 `;
 
+function updateAnchorOptions(theme) {
+  if (!state.options) return;
+  const options = state.options;
+  const selected = el.start.value;
+  const markers = theme === "OGDRAW_CP" ? options.cp_markers : options.markers;
+  el.start.innerHTML = `<option value="">GenBank origin</option>${markers.map((name) => `<option value="${esc(name)}">${esc(options.marker_labels[name] || name)}</option>`).join("")}`;
+  el.start.value = markers.includes(selected) ? selected : "";
+  el.start.disabled = false;
+}
+
 function colourEditors(theme) {
+  updateAnchorOptions(theme);
   state.classOverrides = {};
   const palette = state.options.class_colours[theme] || {};
   el.customColors.innerHTML = Object.entries(palette).map(([name, colour]) => `<label class="colour-row" style="--class-color:${esc(colour)}"><span class="class-name">${esc(name)}</span><input class="hex-colour" type="color" value="${esc(colour)}" data-class-colour="${esc(name)}" aria-label="${esc(name)} colour" /></label>`).join("");
@@ -149,8 +161,7 @@ function populatePyvamOptions(options) {
   el.theme.innerHTML = options.themes.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
   el.theme.value = "MITOFISH";
   el.theme.disabled = false;
-  el.start.innerHTML = `<option value="">GenBank origin</option>${options.markers.map((name) => `<option value="${esc(name)}">${esc(options.marker_labels[name] || name)}</option>`).join("")}`;
-  el.start.disabled = false;
+
   colourEditors(el.theme.value);
 }
 

@@ -246,8 +246,9 @@ fig, ax = pyvam.draw_linear_MT("chloroplast.gb", colors="OGDRAW_CP")
 ```
 
 The browser starts with **MITOFISH** and selects **OGDRAW_CP** when chloroplast
-input is detected. It includes cp genes in the alignment menu and displays the
-detection notice below the plot. **OGDRAW_CP** also contains the mitochondrial
+input is detected. The alignment menu adds cp genes only while **OGDRAW_CP**
+is selected; other themes show the original mt options. The detection notice
+appears below the plot. **OGDRAW_CP** also contains the mitochondrial
 OGDRAW gene colors, allowing cp and mt inputs to share one theme. Legends only
 include categories present in the plotted inputs. Row/column and width adjustments
 apply only when cp input is present; pure mt inputs retain their original layout.
