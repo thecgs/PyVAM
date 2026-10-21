@@ -336,3 +336,65 @@ def test_mt_keeps_original_default_legend_layout(tmp_path, draw, columns, locati
         assert (actual.x0, actual.y0) == pytest.approx(tuple(expected))
     finally:
         plt.close(figure)
+
+
+@pytest.mark.parametrize("length", [20000, 154478, 400000, 1200000])
+@pytest.mark.parametrize("interactive", [False, True])
+def test_cp_linear_ticks_scale_with_genome_length(tmp_path, length, interactive):
+    path = cp_record(tmp_path)
+    record = SeqIO.read(path, "genbank")
+    record.seq = Seq("A" * length)
+    record.features[0].location = SimpleLocation(0, length)
+    SeqIO.write(record, path, "genbank")
+    with pytest.warns(ChloroplastWarning):
+        result = (pyvam.draw_linear_MT_interactive(path) if interactive
+                  else pyvam.draw_linear_MT(path, show_xaxis=True))
+    if interactive:
+        step = result.layout.xaxis.dtick
+    else:
+        figure, axes = result
+        try:
+            ticks = axes[-1].get_xticks()
+            step = ticks[1] - ticks[0]
+            assert ticks[0] == 0 and ticks[-1] >= length
+            assert len(ticks) <= 12
+        finally:
+            plt.close(figure)
+    assert 5 <= length / step <= 10
+    if length == 154478:
+        assert step == 20000
+
+
+def test_mixed_linear_uses_longest_genome_for_shared_cp_ticks(tmp_path):
+    cp_path = cp_record(tmp_path)
+    cp = SeqIO.read(cp_path, "genbank")
+    cp.seq = Seq("A" * 154478)
+    cp.features[0].location = SimpleLocation(0, 154478)
+    SeqIO.write(cp, cp_path, "genbank")
+    mito = SeqRecord(Seq("A" * 16569), id="MT", name="MT")
+    mito.annotations.update(molecule_type="DNA", topology="circular")
+    mito.features = [SeqFeature(SimpleLocation(0, 16569), type="source",
+                               qualifiers={"organism": ["MT species"], "organelle": ["mitochondrion"]}),
+                     SeqFeature(SimpleLocation(10, 100, strand=1), type="CDS", qualifiers={"gene": ["ND1"]})]
+    mt_path = tmp_path / "mt.gb"
+    SeqIO.write(mito, mt_path, "genbank")
+    with pytest.warns(ChloroplastWarning):
+        figure, axes = pyvam.draw_linear_MT([mt_path, cp_path])
+    try:
+        ticks = axes[-1].get_xticks()
+        assert ticks[1] - ticks[0] == 20000
+        assert list(axes[0].get_xticks()) == list(ticks)
+    finally:
+        plt.close(figure)
+
+
+def test_mt_linear_ticks_keep_original_behavior(tmp_path):
+    path = cp_record(tmp_path, "mitochondrion")
+    figure, axes = pyvam.draw_linear_MT(path)
+    try:
+        ticks = axes[-1].get_xticks()
+        assert ticks[1] - ticks[0] == 1000
+    finally:
+        plt.close(figure)
+    figure = pyvam.draw_linear_MT_interactive(path)
+    assert figure.layout.xaxis.dtick is None

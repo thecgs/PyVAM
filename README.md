@@ -251,6 +251,9 @@ detection notice below the plot. **OGDRAW_CP** also contains the mitochondrial
 OGDRAW gene colors, allowing cp and mt inputs to share one theme. Legends only
 include categories present in the plotted inputs. Row/column and width adjustments
 apply only when cp input is present; pure mt inputs retain their original layout.
+Proportional linear plots containing cp input also choose a 1/2/5-based coordinate
+step from the longest genome (for example, 20,000 bp for a 154 kb chloroplast),
+aiming for about ten intervals. Pure mt plots keep their previous tick behavior.
 
 This selection controls nomenclature and visualization. For sequence translation,
 use an appropriate `table` explicitly or `table="auto"` when CDS `/transl_table`

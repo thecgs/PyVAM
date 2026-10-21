@@ -9,6 +9,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 
 from .parserGB import collapse_drawing_parts, feature_key, get_features
+from .drawMT import linear_tick_step
 from .config import MTColors_legends, MTColors, FullName2AbbrName, cp_gene_group
 
 class InteractiveMTVisualizer:
@@ -776,6 +777,10 @@ class InteractiveMTVisualizer:
                     row=i, col=1,
                     tickfont=dict(color='black'),
                 )
+
+        if has_cp:
+            fig.update_xaxes(tickmode="linear", tick0=0, dtick=linear_tick_step(max(genome_lengths)),
+                             tickformat="d")
 
         if  _staus_brake:
             fig.add_trace(go.Scatter(

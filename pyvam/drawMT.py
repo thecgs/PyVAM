@@ -129,6 +129,14 @@ def feature_colour_legend(colors, genomes):
     return sorted(handles, key=lambda handle: rank.get(handle.get_label(), len(rank)))
 
 
+def linear_tick_step(genome_length):
+    """Choose readable 1/2/5-based spacing for roughly ten genome intervals."""
+    target = max(1, genome_length / 10)
+    scale = 10 ** math.floor(math.log10(target))
+    return next(int(multiplier * scale) for multiplier in (1, 2, 5, 10)
+                if multiplier * scale >= target)
+
+
 def legend_columns(handles, axes, fontsize, max_rows=4):
     """Balance rows and columns within the axes' physical width."""
     if not handles:
@@ -622,7 +630,14 @@ def draw_linear_MT(files,
         ax[-1].spines['left'].set_visible(False)
         ax[-1].spines['right'].set_visible(False)
         ax[-1].spines['bottom'].set_visible(False)
-        ax[-1].set_xticks([i for i in range(0 , genome_max_length+2000, 1000)], labels=[i for i in range(0 , genome_max_length+2000, 1000)], **{"fontsize":xaxisfontsize})
+        has_cp = any(features[0].organelle == "chloroplast" for features in genomes)
+        if has_cp:
+            step = linear_tick_step(genome_max_length)
+            upper = math.ceil(genome_max_length / step) * step
+            ticks = list(range(0, upper + step, step))
+        else:
+            ticks = list(range(0, genome_max_length + 2000, 1000))
+        ax[-1].set_xticks(ticks, labels=ticks, **{"fontsize": xaxisfontsize})
         ax[-1].tick_params(top=True, labeltop=True, bottom=False, labelbottom=False, direction='in', pad=-20)
     
     legend_elements = unique_legend(gene_legend)
