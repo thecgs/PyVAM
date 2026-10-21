@@ -70,6 +70,12 @@ def alias_pattern(alias):
 def search_name(gene_name, names=None):
     names = CommonNamesDict if names is None else names
     gene_name = gene_name.upper()
+    if names is _MT_CP_NAMES:
+        # An exact cp alias must not override a valid fuzzy mitochondrial match
+        # (e.g. "16S ribosomal RNA" has different cp and mt conventions).
+        mt_name = search_name(gene_name, CommonNamesDict)
+        if gene_name in CommonNamesDict or mt_name != gene_name:
+            return mt_name
     if gene_name in names:
         return names[gene_name]
     for alias, canonical in names.items():
@@ -82,12 +88,21 @@ def search_name(gene_name, names=None):
 # symbols deterministically while preserving the supplied 2167-row dictionary.
 _CP_CANONICAL = {name.upper(): name for name in sorted(
     set(CommonNamesDict_cp.values()), key=lambda name: (sum(c.isupper() for c in name), name))}
-# cp source tables contain protein/rRNA aliases; reuse known tRNA aliases only.
+# Prefer cp aliases, retaining mitochondrial aliases for mixed annotations.
 _CP_NAMES = {**CommonNamesDict_cp,
-             **{alias: name for alias, name in CommonNamesDict.items() if name.startswith("tRNA-")}}
+             **{alias: name for alias, name in CommonNamesDict.items()
+                if alias not in CommonNamesDict_cp}}
 # Standard cp gene identifiers must also work when the reduced synonym table
 # retained only a longer description for that identifier.
 _CP_NAMES.update(_CP_CANONICAL)
+# When the shared palette is selected on an mt record, retain mt naming
+# precedence while accepting cp-specific gene identifiers and descriptions.
+_MT_CP_NAMES = {**CommonNamesDict,
+                **{alias: name for alias, name in CommonNamesDict_cp.items()
+                   if alias not in CommonNamesDict}}
+_MT_CP_NAMES.update({alias: name for alias, name in _CP_CANONICAL.items()
+                     if alias not in CommonNamesDict})
+
 
 
 def record_is_chloroplast(record):
@@ -442,6 +457,9 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
                 requested_colors.upper() if isinstance(requested_colors, str) else None)
             colors = (MTColors.get(color_theme, MTColors["MITOFISH"])
                       if color_theme is not None else requested_colors)
+            if not is_cp and colors is CPColors_by_OGDRAW:
+                name_map = _MT_CP_NAMES
+                canonical_names = frozenset(name_map.values())
             if is_cp:
                 palette_note = "default OGDRAW_CP palette" if automatic else "the explicitly selected palette"
                 warnings.warn(
@@ -586,7 +604,7 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
                                             mtgenome=mtgenome, accession=accession, file=file, topology=topology, partition=partition,
                                             organelle="chloroplast" if is_cp else None, color_theme=color_theme))
 
-                elif is_cp and i.type in ("tRNA", "rRNA"):
+                elif i.type in ("tRNA", "rRNA") and (is_cp or gene_name in _CP_CANONICAL.values()):
                     location = i.location
                     for part in location.parts:
                         if not is_repeat(features, part, name=gene_name, annotation=i):
@@ -606,7 +624,7 @@ def get_features(file, abbr=False, colors=None, isfilename2species=False, start=
                             if not is_repeat(features=features, location=i.location, name=gene_name, annotation=i):
                                 features.append(Feature(name=gene_name, location=i.location, type=i.type, color=feature_color(gene_name, i.type)))
 
-                elif is_cp and i.type == "gene" and get_type(gene_name) in ("tRNA", "rRNA"):
+                elif i.type == "gene" and (is_cp or gene_name in _CP_CANONICAL.values()) and get_type(gene_name) in ("tRNA", "rRNA"):
                     location = i.location
                     for part in location.parts:
                         if not is_repeat(features, part, name=gene_name, annotation=i):

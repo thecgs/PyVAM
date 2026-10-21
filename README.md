@@ -245,9 +245,12 @@ fig, ax = pyvam.draw_circos_MT("chloroplast.gb", output="chloroplast.png")
 fig, ax = pyvam.draw_linear_MT("chloroplast.gb", colors="OGDRAW_CP")
 ```
 
-The browser defaults to **Auto (genome type)**, includes cp genes in the alignment
-menu, and displays the detection notice below the plot. Select **OGDRAW_CP**
-explicitly to edit chloroplast class colors.
+The browser starts with **MITOFISH** and selects **OGDRAW_CP** when chloroplast
+input is detected. It includes cp genes in the alignment menu and displays the
+detection notice below the plot. **OGDRAW_CP** also contains the mitochondrial
+OGDRAW gene colors, allowing cp and mt inputs to share one theme. Legends only
+include categories present in the plotted inputs and balance their rows/columns
+within the figure width.
 
 This selection controls nomenclature and visualization. For sequence translation,
 use an appropriate `table` explicitly or `table="auto"` when CDS `/transl_table`

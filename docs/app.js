@@ -5,7 +5,7 @@ let PYVAM_COMMIT = "unknown";
 const EXAMPLE_ACCESSIONS = ["MK804158","MK804156","MK804154","MK804151","MK804150","MK804153","MK804152","MK804164","MK784108","MK804148","MK804159","MK804149","MK804157","MK804155","MK804160","MK804163","MK804162","MK804161"];
 const $ = (s) => document.querySelector(s);
 const el = { files: $("#file-input"), selectedFiles: $("#selected-files"), inputTitle: $("#input-title"), chooseFiles: $("#choose-files"), accessions: $("#accession-input"), addAccessions: $("#add-accessions"), status: $("#runtime-status"), summary: $("#file-summary"), title: $("#plot-title"), note: $("#plot-note"), stats: $("#stats"), plot: $("#plot"), render: $("#render-button"), download: $("#download-button"), downloadPng: $("#download-png-button"), downloadPdf: $("#download-pdf-button"), cancel: $("#cancel-button"), progress: $("#task-progress"), reset: $("#reset-button"), theme: $("#theme"), customColors: $("#custom-colors"), start: $("#start-feature"), labels: $("#show-labels") };
-const state = { pyodide: null, files: [], inputs: [], nextInputId: 0, image: null, options: null, classOverrides: {}, pendingFiles: [], pendingAccessions: [], cancelRequested: false, ncbiController: null };
+const state = { pyodide: null, files: [], inputs: [], nextInputId: 0, image: null, options: null, classOverrides: {}, pendingFiles: [], pendingAccessions: [], cancelRequested: false, ncbiController: null, cpThemeDefaultApplied: false };
 const mode = () => document.querySelector('input[name="view"]:checked').value;
 const status = (text) => { el.status.textContent = text; };
 const esc = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" })[c]);
@@ -42,7 +42,7 @@ def classes_for_theme(theme):
 
 def pyvam_options():
     return json.dumps({
-        "themes": ["AUTO"] + sorted(MTColors),
+        "themes": sorted(MTColors),
         "markers": sorted(set(CommonNamesDict.values()) | set(CommonNamesDict_cp.values()), key=str.casefold),
         "marker_labels": {name: f"{name} = {abbr}" for name, abbr in FullName2AbbrName.items() if name.startswith("tRNA-")},
         "class_colours": {theme: {klass: palette.get(members[0], palette.get("Other genes", "#808080"))[:7] for klass, members in classes_for_theme(theme).items() if members} for theme, palette in MTColors.items()},
@@ -58,6 +58,7 @@ def pyvam_describe(paths_json):
             "name": source.name if source is not None else os.path.basename(path),
             "length": len(source.location) if source is not None else 0,
             "features": max(len(features) - 1, 0),
+            "is_cp": source is not None and source.organelle == "chloroplast",
         })
     return json.dumps(result)
 
@@ -78,7 +79,7 @@ def _pyvam_render(paths_json, view, theme, start, labels, custom_colors_json, op
     class_colours = json.loads(custom_colors_json)
     # Preserve each PyVAM theme exactly (including RGBA alpha) unless the user
     # explicitly changes a class colour in the web UI.
-    colors = None if theme == "AUTO" else theme
+    colors = theme
     if class_colours:
         colors = dict(MTColors[theme.upper()])
         for klass, colour in class_colours.items():
@@ -145,8 +146,8 @@ function colourEditors(theme) {
 
 function populatePyvamOptions(options) {
   state.options = options;
-  el.theme.innerHTML = options.themes.map((name) => `<option value="${esc(name)}">${esc(name === "AUTO" ? "Auto (genome type)" : name)}</option>`).join("");
-  el.theme.value = "AUTO";
+  el.theme.innerHTML = options.themes.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+  el.theme.value = "MITOFISH";
   el.theme.disabled = false;
   el.start.innerHTML = `<option value="">GenBank origin</option>${options.markers.map((name) => `<option value="${esc(name)}">${esc(options.marker_labels[name] || name)}</option>`).join("")}`;
   el.start.disabled = false;
@@ -252,7 +253,7 @@ function webOptions() {
     add_id: $("#add-id").checked,
     show_legend: $("#show-legend").checked,
     legend_size: optionalNumber("#legend-size"),
-    legend_position: x === null && y === null ? (circular ? [1, -0.15] : null) : [x === null ? 1 : x, y === null ? (circular ? -0.15 : 0) : y],
+    legend_position: x === null && y === null ? null : [x === null ? 0.5 : x, y === null ? (circular ? -0.18 : -0.12) : y],
     gene_label_size: optionalNumber("#gene-label-size") ?? (circular ? 5 : null),
     gene_label_color: $("#gene-label-color").value,
     species_label_size: optionalNumber("#species-label-size"),
@@ -351,7 +352,18 @@ async function importAccessions(accessions) {
 async function refreshInputs() {
   try {
     state.pyodide.globals.set("web_paths_json", JSON.stringify(state.files));
-    updateStats(JSON.parse(await state.pyodide.runPythonAsync("pyvam_describe(web_paths_json)")));
+    const summaries = JSON.parse(await state.pyodide.runPythonAsync("pyvam_describe(web_paths_json)"));
+    const hasCp = summaries.some((record) => record.is_cp);
+    if (hasCp && !state.cpThemeDefaultApplied) {
+      el.theme.value = "OGDRAW_CP";
+      colourEditors(el.theme.value);
+    }
+    if (!hasCp && state.cpThemeDefaultApplied && el.theme.value === "OGDRAW_CP") {
+      el.theme.value = "MITOFISH";
+      colourEditors(el.theme.value);
+    }
+    state.cpThemeDefaultApplied = hasCp;
+    updateStats(summaries);
     el.summary.textContent = `${state.files.length} GenBank file${state.files.length === 1 ? "" : "s"} ready for PyVAM rendering.`;
     await render();
   } catch (error) { el.summary.textContent = `PyVAM could not parse the selected input(s): ${error.message}`; console.error(error); }
@@ -473,7 +485,7 @@ function updateHexInput(input) {
 el.customColors.addEventListener("input", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) { state.classOverrides[event.target.dataset.classColour] = event.target.value; render(); } });
 el.customColors.addEventListener("change", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) { state.classOverrides[event.target.dataset.classColour] = event.target.value; render(); } });
 document.querySelectorAll(".hex-colour").forEach((input) => { updateHexInput(input); input.addEventListener("input", () => { if (updateHexInput(input)) render(); }); });
-el.reset.addEventListener("click", () => { $("#rotation-warnings").hidden = true; $("#rotation-warnings").textContent = ""; state.ncbiController?.abort(); state.files = []; state.inputs = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; renderSelectedFiles(); el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; el.downloadPng.disabled = true; el.downloadPdf.disabled = true; });
+el.reset.addEventListener("click", () => { if (state.cpThemeDefaultApplied && el.theme.value === "OGDRAW_CP") { el.theme.value = "MITOFISH"; colourEditors(el.theme.value); } state.cpThemeDefaultApplied = false; $("#rotation-warnings").hidden = true; $("#rotation-warnings").textContent = ""; state.ncbiController?.abort(); state.files = []; state.inputs = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; renderSelectedFiles(); el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; el.downloadPng.disabled = true; el.downloadPdf.disabled = true; });
 el.download.addEventListener("click", () => { if (!state.image) return; const link = Object.assign(document.createElement("a"), { href: `data:image/svg+xml;base64,${state.image}`, download: `pyvam-${mode()}-map.svg` }); link.click(); });
 async function exportFigure(format) {
   if (!state.image) return;

@@ -3670,7 +3670,7 @@ CPColorGroups = (
     ("photosystem II", "#328925", r"^psb"),
     ("cytochrome b/f complex", "#799C13", r"^pet"),
     ("ATP synthase", "#97BE0D", r"^atp"),
-    ("NADH dehydrogenase", "#FFEC00", r"^ndh"),
+    ("NADH dehydrogenase", "#FFEC00", r"^(ndh|ND[1-6])"),
     ("RubisCO large subunit", "#1FA12D", r"^rbcl"),
     ("photosystem assembly/stability factors", "#FEFEC8", r"^(pbf1|pafI|pafII)"),
     ("RNA polymerase", "#BD1220", r"^rpo"),
@@ -3684,6 +3684,9 @@ CPColorGroups = (
     ("origin of replication", "#FF8080", r"^ori"),
     ("polycistronic transcripts", "#FF00FF", r"^(operon|prim_transcript)$"),
     ("introns", "#FFFFFF", r"^intron$"),
+    ("cytochrome c oxidase", "#FFB4FF", r"^COX[1-3]$"),
+    ("cytochrome b", "#AB259D", r"^Cytb$"),
+    ("D-loop (Non-coding region)", "#FF8080", r"^D-loop$"),
     ("other genes", "#AB259D", r".*"),
 )
 
@@ -3707,7 +3710,8 @@ def cp_gene_color(name, feature_type=None):
     return next(color for label, color, pattern in CPColorGroups if label == group)
 
 
-CPColors_by_OGDRAW = {"source": "#000000", "Other genes": "#AB259D"}
+# Keep mitochondrial OGDRAW gene colors in this shared cp/mt palette.
+CPColors_by_OGDRAW = {**MTColors_by_OGDRAW, "source": "#000000", "Other genes": "#AB259D"}
 CPColors_by_OGDRAW.update({name: cp_gene_color(name) for name in set(CommonNamesDict_cp.values())})
 CPColors_by_OGDRAW.update({name: "#162983" for name in CommonNamesDict.values() if name.startswith("tRNA-")})
 CPColors_by_OGDRAW.update({kind: cp_gene_color(kind, kind) for kind in

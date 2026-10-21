@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib import collections
 from matplotlib.patches import Patch, FancyArrow
 from matplotlib.lines import Line2D
+from matplotlib.colors import to_rgba
 from .parserGB import collapse_drawing_parts, feature_key, get_features
 from .config import (MTColors_legends, FullName2AbbrName, CommonNamesDict_cp,
                      CPColorGroups, cp_gene_group)
@@ -55,17 +56,90 @@ def custom_colour_legend(colors):
             handles.append(Patch(facecolor=color, edgecolor='black', label=name))
     return handles
 
-def automatic_colour_legend(genomes):
-    """Combine defaults for cp/mitochondrial inputs without duplicate entries."""
-    handles, seen = [], set()
+def _mitochondrial_group(feature, theme):
+    if theme == "IGV":
+        return feature.name if feature.name in FullName2AbbrName else "Other genes"
+    if feature.name == "D-loop":
+        return "D-loop (Non-coding region)"
+    if feature.name == "Cytb":
+        return "Cytochrome b"
+    for label, members in _CUSTOM_COLOUR_LEGEND_GROUPS:
+        if feature.name in members:
+            if theme == "MITOZ":
+                if feature.type == "CDS":
+                    return "Protein codon genes"
+                if feature.type == "tRNA":
+                    return "transfer RNA genes"
+                if feature.type == "rRNA":
+                    return "ribosomal RNA genes"
+            return label
+    return "Other genes"
+
+
+def unique_legend(handles):
+    result, seen = [], set()
+    for handle in handles:
+        key = (handle.get_label(), tuple(handle.get_facecolor()))
+        if key not in seen:
+            seen.add(key)
+            result.append(handle)
+    return result
+
+
+def feature_colour_legend(colors, genomes):
+    """Use only categories represented by rendered annotations, before labels shorten."""
+    handles = []
+    custom = custom_colour_legend(colors) if isinstance(colors, dict) else None
+    cp_custom = isinstance(colors, dict) and any(name in colors for name in CommonNamesDict_cp.values())
     for features in genomes:
         theme = features[0].color_theme or "MITOFISH"
-        for handle in MTColors_legends.get(theme, MTColors_legends["MITOFISH"]):
-            key = (handle.get_label(), tuple(handle.get_facecolor()))
-            if key not in seen:
-                seen.add(key)
-                handles.append(handle)
-    return handles
+        for feature in features[1:]:
+            if feature.type in ("source", "Gap") or feature.location.strand not in (1, -1):
+                continue
+            if custom is not None:
+                label = None
+                for handle in custom:
+                    candidate = handle.get_label()
+                    same_group = (cp_gene_group(feature.name, feature.type) == candidate if cp_custom else
+                                  any(candidate == group and feature.name in members
+                                      for group, members in _CUSTOM_COLOUR_LEGEND_GROUPS))
+                    if candidate == feature.name or same_group or (
+                        candidate.casefold() == "other genes" and feature.name not in colors
+                    ):
+                        label = candidate
+                        break
+                if label is None:
+                    continue
+            elif theme == "OGDRAW_CP":
+                label = cp_gene_group(feature.name, feature.type)
+            else:
+                label = _mitochondrial_group(feature, theme)
+            handles.append(Patch(facecolor=feature.color, edgecolor="black", label=label))
+    handles = unique_legend(handles)
+    order = []
+    if custom is not None:
+        order.extend(h.get_label() for h in custom)
+    else:
+        for features in genomes:
+            theme = features[0].color_theme or "MITOFISH"
+            order.extend(h.get_label() for h in MTColors_legends.get(theme, MTColors_legends["MITOFISH"]))
+    rank = {}
+    for label in order:
+        rank.setdefault(label, len(rank))
+    return sorted(handles, key=lambda handle: rank.get(handle.get_label(), len(rank)))
+
+
+def legend_columns(handles, axes, fontsize, max_rows=4):
+    """Balance rows and columns within the axes' physical width."""
+    if not handles:
+        return 1
+    labels = [h.get_label() for h in handles]
+    width_inches = axes.figure.get_figwidth() * axes.get_position().width
+    # Font-based width estimate includes each entry's swatch and padding.
+    entry_width = (max(len(label) for label in labels) * 0.52 + 4) * fontsize / 72
+    capacity = max(1, int(width_inches / max(entry_width, 0.1)))
+    desired = math.ceil(len(handles) / max_rows)
+    return max(1, min(len(handles), desired, capacity))
 
 
 def rotation_text(theta, direction=-1):
@@ -143,7 +217,7 @@ def draw_circos_MT(file,
                    info_fontsize=15,
                    show_legend=True,
                    legend_size=6,
-                   legend_postion=(1, -0.1),
+                   legend_postion=(0.5, -0.18),
                    show_GC_circos=True,
                    GC_circos_height = 0.3,
                    GC_circos_color = 'grey',
@@ -225,6 +299,7 @@ def draw_circos_MT(file,
     if remove_NCR:
         features = [feature for feature in features if feature.name != "D-loop"]
     add_other_genes = is_othergenes(features)
+    gene_legend = feature_colour_legend(colors, [features])
     try:
         #str(features[0].mtgenome)  # UndefinedSequenceError
         GC = get_GC(features[0].mtgenome)
@@ -303,26 +378,12 @@ def draw_circos_MT(file,
                 
             ax.plot([i* math.pi/180 for i in range(0, 361)], [radius]*361, c='black')
             
-    if colors is None or isinstance(colors, str) and colors.upper() == "AUTO":
-        legend_elements = automatic_colour_legend([features])
-        ncol = 1
-    elif isinstance(colors, str):
-        legend_elements = MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH'])
-        if colors.upper() == "IGV":
-            ncol = 4
-        else:
-            ncol = 1
-    elif isinstance(colors, dict):
-        legend_elements = custom_colour_legend(colors)
-        ncol = 4
-    
-    if add_other_genes == False:
-        legend_elements = [element for element in legend_elements
-                           if element.get_label() != "Other genes"]
-    
+    legend_elements = gene_legend
+    ncol = legend_columns(legend_elements, ax, legend_size, max_rows=6)
+
     if show_legend:
         ax.legend(handles=legend_elements,
-                  loc='center', 
+                  loc='upper center',
                   bbox_to_anchor=legend_postion, 
                   ncol=ncol,
                   #frameon=False,
@@ -451,7 +512,7 @@ def draw_linear_MT(files,
                    info_fontsize=10,
                    show_legend=True,
                    legend_size=10,
-                   legend_postion=(1, 0.5),
+                   legend_postion=(0.5, -0.18),
                    start=None,
                    show_xaxis=True,
                    xaxisfontsize=10, 
@@ -514,6 +575,7 @@ def draw_linear_MT(files,
     
     genome_max_length = 0
     genomes = []
+    gene_legend = []
     for file in files:
         features = get_features(file, abbr=abbr, isfilename2species=isfilename2species,
                                 colors=colors, start=start,
@@ -523,6 +585,7 @@ def draw_linear_MT(files,
             features = [feature for feature in features if feature.name != "D-loop"]
         
         add_other_genes = add_other_genes or is_othergenes(features)
+        gene_legend.extend(feature_colour_legend(colors, [features]))
         if tidyname:
             for i, f in enumerate(features):
                 features[i].name = FullName2AbbrName.get(f.name, f.name)
@@ -557,13 +620,7 @@ def draw_linear_MT(files,
         ax[-1].set_xticks([i for i in range(0 , genome_max_length+2000, 1000)], labels=[i for i in range(0 , genome_max_length+2000, 1000)], **{"fontsize":xaxisfontsize})
         ax[-1].tick_params(top=True, labeltop=True, bottom=False, labelbottom=False, direction='in', pad=-20)
     
-    if colors is None or isinstance(colors, str) and colors.upper() == "AUTO":
-        legend_elements = automatic_colour_legend(genomes)
-    elif isinstance(colors, str):
-        legend_elements = MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH'])
-
-    elif isinstance(colors, dict):
-        legend_elements = custom_colour_legend(colors)
+    legend_elements = unique_legend(gene_legend)
 
     if show_legend:
         if _staus_brake:
@@ -573,15 +630,11 @@ def draw_linear_MT(files,
                                      )
                               ] + legend_elements
             
-        if add_other_genes == False:
-            legend_elements = [element for element in legend_elements
-                               if element.get_label() != "Other genes"]
-
         legend_ax = ax if not show_xaxis and len(genomes) == 1 else ax[-1]
         legend_ax.legend(handles=legend_elements,
-                      loc='upper right', 
+                      loc='upper center',
                       bbox_to_anchor=legend_postion, 
-                      ncol=12,
+                      ncol=legend_columns(legend_elements, legend_ax, legend_size),
                       #frameon=False,
                       #shadow=False,
                       prop={'size': legend_size},
@@ -642,7 +695,7 @@ def draw_linear_MT_nonproportional(files,
                                    gene_label_color="black",
                                    show_legend=True,
                                    legend_size=8,
-                                   legend_postion=(1, 0),
+                                   legend_postion=(0.5, -0.12),
                                    start=None,
                                    height=0.6,
                                    species_label_size=10,
@@ -704,6 +757,8 @@ def draw_linear_MT_nonproportional(files,
         genomes.append(features)
         add_other_genes = add_other_genes or is_othergenes(features)
     
+    gene_legend = feature_colour_legend(colors, genomes)
+
     if axes == None:
         fig, ax= plt.subplots(1, 1, figsize=(20, len(genomes)/2))
     else:
@@ -812,23 +867,15 @@ def draw_linear_MT_nonproportional(files,
                                      )
                               ]
         
-        if colors is None or isinstance(colors, str) and colors.upper() == "AUTO":
-            legend_elements.extend(automatic_colour_legend(genomes))
-            ncol = 12
-        elif isinstance(colors, str):
-            legend_elements.extend(MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH']))
-            ncol=12
-        elif isinstance(colors, dict):
-            legend_elements.extend(custom_colour_legend(colors))
-            ncol = 12
-            
-        if add_other_genes == False:
-            legend_elements = [element for element in legend_elements
-                               if element.get_label() != "Other genes"]
+        strands = {f.location.strand for genome in genomes for f in genome[1:] if f.type != "Gap"}
+        legend_elements = [h for h in legend_elements if
+                           (h.get_label() != "Forward" or 1 in strands) and
+                           (h.get_label() != "Reverse" or -1 in strands)]
+        legend_elements.extend(gene_legend)
         ax.legend(handles=legend_elements,
-                  loc='upper right', 
+                  loc='upper center',
                   bbox_to_anchor=legend_postion, 
-                  ncol=12,
+                  ncol=legend_columns(legend_elements, ax, legend_size),
                   #frameon=False,
                   #shadow=False,
                   prop={'size': legend_size},

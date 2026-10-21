@@ -86,6 +86,24 @@ class InteractiveMTVisualizer:
         box_width = head_length + tail_length
         return head_length, tail_length, box_width, text_offset
 
+    def _fit_legend(self, figure):
+        """Keep populated legend entries below the plot in balanced rows."""
+        if figure.layout.showlegend is False:
+            return
+        labels = [trace.name for trace in figure.data if trace.name and trace.showlegend is not False]
+        if not labels:
+            return
+        usable_width = (figure.layout.width or 1500) - 100
+        entry_width = max(len(label) for label in labels) * 6.2 + 50
+        columns = max(1, min(int(usable_width / entry_width), math.ceil(len(labels) / 3)))
+        rows = math.ceil(len(labels) / columns)
+        figure.update_layout(
+            legend=dict(x=0.5, y=-0.08, xanchor="center", yanchor="top",
+                        orientation="h", entrywidth=usable_width / columns, entrywidthmode="pixels"),
+            margin=dict(b=40 + rows * 24),
+            height=(figure.layout.height or 400) + rows * 24,
+        )
+
     def _get_colors_group(self, colors):
         res = {}
         if isinstance(colors, dict):
@@ -412,12 +430,14 @@ class InteractiveMTVisualizer:
                            bordercolor="black", borderwidth=1)
         }
 
+        strands = {f.location.strand for genome in genomes for f in genome[1:] if f.type != 'Gap'}
+
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
             mode='markers',
             marker=dict(symbol='triangle-left-open', color='black', size=12),
             name='Reverse',
-            showlegend=True
+            showlegend=-1 in strands
         ))
 
         fig.add_trace(go.Scatter(
@@ -425,7 +445,7 @@ class InteractiveMTVisualizer:
             mode='markers',
             marker=dict(symbol='triangle-right-open', color='black', size=12),
             name='Forward',
-            showlegend=True
+            showlegend=1 in strands
         ))
         
         if  _staus_brake:
@@ -441,6 +461,7 @@ class InteractiveMTVisualizer:
         fig.update_yaxes(range=[-1, len(genomes)+1])
         
         fig.update_layout(**layout_dict) 
+        self._fit_legend(fig)
         if output:
             fig.write_html(output, config=self.nav_config)
         #else:
@@ -773,6 +794,7 @@ class InteractiveMTVisualizer:
         layout_dict.update(self.default_layout)
         fig.update_layout(**layout_dict)
         
+        self._fit_legend(fig)
         if output:
             fig.write_html(output, config=self.nav_config)
         #else:

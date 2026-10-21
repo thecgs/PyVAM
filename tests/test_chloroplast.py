@@ -154,7 +154,7 @@ def test_cp_gene_cds_and_rna_placeholders_are_deduplicated(tmp_path):
 
 
 @pytest.mark.parametrize("view", ["circular", "linear", "order"])
-def test_web_runtime_auto_palette_and_cp_warning(tmp_path, view):
+def test_web_runtime_selected_cp_palette_and_warning(tmp_path, view):
     path = cp_record(tmp_path)
     source = (Path(__file__).parents[1] / "docs" / "app.js").read_text()
     runtime = source.split("const runtime = String.raw`", 1)[1].split("`;", 1)[0]
@@ -162,7 +162,7 @@ def test_web_runtime_auto_palette_and_cp_warning(tmp_path, view):
     ns = {}
     exec(runtime, ns)
     options = json.loads(ns["pyvam_options"]())
-    assert "OGDRAW_CP" in options["themes"] and "AUTO" in options["themes"]
+    assert "OGDRAW_CP" in options["themes"] and "AUTO" not in options["themes"]
     assert "rbcL" in options["markers"]
     assert options["class_colours"]["OGDRAW_CP"]["photosystem I"] == "#00662C"
     web = {key: None for key in re.findall(r'web\["([^\"]+)"\]', runtime)}
@@ -172,7 +172,7 @@ def test_web_runtime_auto_palette_and_cp_warning(tmp_path, view):
     web.update(isfilename2species=False, abbr=False, add_id=True, remove_ncr=False,
                show_legend=True, force_reoriented=False, direction=-1, show_gc_circos=False,
                show_info=False, gene_label_inner=False, tidyname=False, show_xaxis=False)
-    args = [json.dumps([str(path)]), view, "AUTO", "", True, "{}", json.dumps(web)]
+    args = [json.dumps([str(path)]), view, "OGDRAW_CP", "", True, "{}", json.dumps(web)]
     assert ns["pyvam_render"](*args)
     assert any("detected chloroplast" in message for message in ns["_web_warnings"])
     legend = ns["_web_figure"].axes[0].get_legend()
@@ -224,3 +224,95 @@ def test_tidy_cp_retains_chloroplast_identity(tmp_path):
     with pytest.warns(ChloroplastWarning):
         features = pyvam.get_features(output)
     assert any(f.name == "rbcL" and f.color == "#1FA12D" for f in features)
+
+
+def test_shared_cp_theme_recognizes_mt_genes_on_cp_record(tmp_path):
+    path = cp_record(tmp_path)
+    record = SeqIO.read(path, "genbank")
+    for i, name in enumerate(["ND1", "COX1", "ATPase6", "Cytb"]):
+        record.features.append(SeqFeature(SimpleLocation(1010 + i * 30, 1030 + i * 30, strand=1),
+                                          type="CDS", qualifiers={"gene": [name]}))
+    SeqIO.write(record, path, "genbank")
+    with pytest.warns(ChloroplastWarning):
+        features = pyvam.get_features(path, colors="OGDRAW_CP")
+    by_name = {f.name: f for f in features}
+    for name in ["ND1", "COX1", "ATPase6", "Cytb"]:
+        assert name in by_name
+        assert to_rgba(by_name[name].color) == to_rgba(MTColors["OGDRAW"][name])
+    assert by_name["rbcL"].color == "#1FA12D"
+
+
+@pytest.mark.parametrize("draw", [pyvam.draw_circos_MT, pyvam.draw_linear_MT,
+                                  pyvam.draw_linear_MT_nonproportional])
+def test_cp_legends_hide_absent_categories_and_balance_columns(tmp_path, draw):
+    path = cp_record(tmp_path)
+    options = {"show_xaxis": False} if draw == pyvam.draw_linear_MT else {}
+    with pytest.warns(ChloroplastWarning):
+        figure, axes = draw(path, colors="OGDRAW_CP", **options)
+    try:
+        legend = axes.get_legend()
+        labels = [text.get_text() for text in legend.get_texts()]
+        assert "photosystem I" in labels
+        assert "RubisCO large subunit" in labels
+        assert "photosystem II" not in labels
+        assert "introns" not in labels
+        assert "RNA polymerase" not in labels
+        assert "cytochrome c oxidase" not in labels
+        assert "Reverse" not in labels
+        assert 1 < legend._ncols < 12
+        assert len(set(labels)) == len(labels)
+    finally:
+        plt.close(figure)
+
+
+@pytest.mark.parametrize("draw", [pyvam.draw_circos_MT, pyvam.draw_linear_MT,
+                                  pyvam.draw_linear_MT_nonproportional])
+def test_mt_legends_hide_absent_categories_even_with_short_labels(tmp_path, draw):
+    path = cp_record(tmp_path, "mitochondrion")
+    record = SeqIO.read(path, "genbank")
+    record.features = [record.features[0],
+                       SeqFeature(SimpleLocation(10, 70, strand=1), type="CDS",
+                                  qualifiers={"gene": ["ND1"]})]
+    SeqIO.write(record, path, "genbank")
+    options = {"show_xaxis": False, "tidyname": True} if draw == pyvam.draw_linear_MT else {}
+    figure, axes = draw(path, colors="OGDRAW_CP", **options)
+    try:
+        labels = [text.get_text() for text in axes.get_legend().get_texts()]
+        assert "NADH dehydrogenase" in labels
+        assert "photosystem I" not in labels
+        assert "cytochrome c oxidase" not in labels
+        assert "Reverse" not in labels
+        assert "other genes" not in labels
+    finally:
+        plt.close(figure)
+
+
+@pytest.mark.parametrize("draw", [pyvam.draw_linear_MT_interactive,
+                                  pyvam.draw_linear_MT_nonproportional_interactive])
+def test_shared_interactive_theme_groups_only_present_genes(tmp_path, draw):
+    path = cp_record(tmp_path, "mitochondrion")
+    record = SeqIO.read(path, "genbank")
+    record.features = [record.features[0],
+                       SeqFeature(SimpleLocation(10, 70, strand=1), type="CDS",
+                                  qualifiers={"gene": ["COX1"]})]
+    SeqIO.write(record, path, "genbank")
+    figure = draw(path, colors="OGDRAW_CP")
+    shown = [trace for trace in figure.data if trace.showlegend]
+    assert any(trace.legendgroup == "cytochrome c oxidase" for trace in shown)
+    assert not any(trace.name == "Reverse" or trace.legendgroup == "photosystem I" for trace in shown)
+    assert figure.layout.legend.y < 0
+    assert figure.layout.margin.b > 40
+
+
+
+def test_shared_theme_accepts_cp_genes_without_changing_mt_names(tmp_path):
+    path = cp_record(tmp_path, "mitochondrion")
+    record = SeqIO.read(path, "genbank")
+    record.features.append(SeqFeature(SimpleLocation(1100, 1160, strand=1), type="rRNA",
+                                      qualifiers={"product": ["16S ribosomal RNA"]}))
+    SeqIO.write(record, path, "genbank")
+    with warnings.catch_warnings(record=True) as captured:
+        features = pyvam.get_features(path, colors="OGDRAW_CP")
+    assert not [w for w in captured if issubclass(w.category, ChloroplastWarning)]
+    assert any(f.name == "rbcL" and f.color == "#1FA12D" for f in features)
+    assert any(f.name == "16S rRNA" and f.type == "rRNA" for f in features)
