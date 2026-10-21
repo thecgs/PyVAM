@@ -217,7 +217,7 @@ def draw_circos_MT(file,
                    info_fontsize=15,
                    show_legend=True,
                    legend_size=6,
-                   legend_postion=(0.5, -0.18),
+                   legend_postion=None,
                    show_GC_circos=True,
                    GC_circos_height = 0.3,
                    GC_circos_color = 'grey',
@@ -379,11 +379,16 @@ def draw_circos_MT(file,
             ax.plot([i* math.pi/180 for i in range(0, 361)], [radius]*361, c='black')
             
     legend_elements = gene_legend
-    ncol = legend_columns(legend_elements, ax, legend_size, max_rows=6)
+    has_cp = features[0].organelle == "chloroplast"
+    ncol = (legend_columns(legend_elements, ax, legend_size, max_rows=6) if has_cp else
+            (4 if isinstance(colors, dict) or isinstance(colors, str) and colors.upper() == "IGV" else 1))
+    legend_location = "upper center" if has_cp else "center"
+    if legend_postion is None:
+        legend_postion = (0.5, -0.18) if has_cp else (1, -0.1)
 
     if show_legend:
         ax.legend(handles=legend_elements,
-                  loc='upper center',
+                  loc=legend_location,
                   bbox_to_anchor=legend_postion, 
                   ncol=ncol,
                   #frameon=False,
@@ -512,7 +517,7 @@ def draw_linear_MT(files,
                    info_fontsize=10,
                    show_legend=True,
                    legend_size=10,
-                   legend_postion=(0.5, -0.18),
+                   legend_postion=None,
                    start=None,
                    show_xaxis=True,
                    xaxisfontsize=10, 
@@ -630,11 +635,15 @@ def draw_linear_MT(files,
                                      )
                               ] + legend_elements
             
+        has_cp = any(features[0].organelle == "chloroplast" for features in genomes)
+        legend_location = "upper center" if has_cp else "upper right"
+        if legend_postion is None:
+            legend_postion = (0.5, -0.18) if has_cp else (1, 0.5)
         legend_ax = ax if not show_xaxis and len(genomes) == 1 else ax[-1]
         legend_ax.legend(handles=legend_elements,
-                      loc='upper center',
+                      loc=legend_location,
                       bbox_to_anchor=legend_postion, 
-                      ncol=legend_columns(legend_elements, legend_ax, legend_size),
+                      ncol=legend_columns(legend_elements, legend_ax, legend_size) if has_cp else 12,
                       #frameon=False,
                       #shadow=False,
                       prop={'size': legend_size},
@@ -695,7 +704,7 @@ def draw_linear_MT_nonproportional(files,
                                    gene_label_color="black",
                                    show_legend=True,
                                    legend_size=8,
-                                   legend_postion=(0.5, -0.12),
+                                   legend_postion=None,
                                    start=None,
                                    height=0.6,
                                    species_label_size=10,
@@ -872,10 +881,14 @@ def draw_linear_MT_nonproportional(files,
                            (h.get_label() != "Forward" or 1 in strands) and
                            (h.get_label() != "Reverse" or -1 in strands)]
         legend_elements.extend(gene_legend)
+        has_cp = any(features[0].organelle == "chloroplast" for features in genomes)
+        legend_location = "upper center" if has_cp else "upper right"
+        if legend_postion is None:
+            legend_postion = (0.5, -0.12) if has_cp else (1, 0)
         ax.legend(handles=legend_elements,
-                  loc='upper center',
+                  loc=legend_location,
                   bbox_to_anchor=legend_postion, 
-                  ncol=legend_columns(legend_elements, ax, legend_size),
+                  ncol=legend_columns(legend_elements, ax, legend_size) if has_cp else 12,
                   #frameon=False,
                   #shadow=False,
                   prop={'size': legend_size},

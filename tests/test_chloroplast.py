@@ -300,8 +300,8 @@ def test_shared_interactive_theme_groups_only_present_genes(tmp_path, draw):
     shown = [trace for trace in figure.data if trace.showlegend]
     assert any(trace.legendgroup == "cytochrome c oxidase" for trace in shown)
     assert not any(trace.name == "Reverse" or trace.legendgroup == "photosystem I" for trace in shown)
-    assert figure.layout.legend.y < 0
-    assert figure.layout.margin.b > 40
+    assert figure.layout.legend.y == 0
+    assert figure.layout.margin.b == 50
 
 
 
@@ -316,3 +316,23 @@ def test_shared_theme_accepts_cp_genes_without_changing_mt_names(tmp_path):
     assert not [w for w in captured if issubclass(w.category, ChloroplastWarning)]
     assert any(f.name == "rbcL" and f.color == "#1FA12D" for f in features)
     assert any(f.name == "16S rRNA" and f.type == "rRNA" for f in features)
+
+
+@pytest.mark.parametrize("draw,columns,location,anchor", [
+    (pyvam.draw_circos_MT, 1, 10, (1, -0.1)),
+    (pyvam.draw_linear_MT, 12, 1, (1, 0.5)),
+    (pyvam.draw_linear_MT_nonproportional, 12, 1, (1, 0)),
+])
+def test_mt_keeps_original_default_legend_layout(tmp_path, draw, columns, location, anchor):
+    path = cp_record(tmp_path, "mitochondrion")
+    options = {"show_xaxis": False} if draw == pyvam.draw_linear_MT else {}
+    figure, axes = draw(path, colors="OGDRAW_CP", **options)
+    try:
+        legend = axes.get_legend()
+        assert legend._ncols == columns
+        assert legend._loc == location
+        expected = axes.transAxes.transform(anchor)
+        actual = legend.get_bbox_to_anchor()
+        assert (actual.x0, actual.y0) == pytest.approx(tuple(expected))
+    finally:
+        plt.close(figure)

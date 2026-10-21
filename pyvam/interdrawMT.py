@@ -461,7 +461,8 @@ class InteractiveMTVisualizer:
         fig.update_yaxes(range=[-1, len(genomes)+1])
         
         fig.update_layout(**layout_dict) 
-        self._fit_legend(fig)
+        if any(features[0].organelle == "chloroplast" for features in genomes):
+            self._fit_legend(fig)
         if output:
             fig.write_html(output, config=self.nav_config)
         #else:
@@ -538,12 +539,14 @@ class InteractiveMTVisualizer:
         genome_lengths = []
         species_names = []
         _staus_brake = False
+        has_cp = False
         for i, file in enumerate(files):
             features = get_features(file, abbr=abbr, isfilename2species=isfilename2species,
                                     colors=colors, start=start,
                                     force_reoriented=force_reoriented,
                                     default_topology=default_topology)
             
+            has_cp = has_cp or features[0].organelle == "chloroplast"
             if remove_NCR:
                 features = [feature for feature in features if feature.name != "D-loop"]
             
@@ -794,7 +797,8 @@ class InteractiveMTVisualizer:
         layout_dict.update(self.default_layout)
         fig.update_layout(**layout_dict)
         
-        self._fit_legend(fig)
+        if has_cp:
+            self._fit_legend(fig)
         if output:
             fig.write_html(output, config=self.nav_config)
         #else:

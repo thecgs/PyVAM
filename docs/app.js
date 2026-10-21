@@ -253,7 +253,10 @@ function webOptions() {
     add_id: $("#add-id").checked,
     show_legend: $("#show-legend").checked,
     legend_size: optionalNumber("#legend-size"),
-    legend_position: x === null && y === null ? null : [x === null ? 0.5 : x, y === null ? (circular ? -0.18 : -0.12) : y],
+    legend_position: x === null && y === null
+      ? (circular && !state.cpThemeDefaultApplied ? [1, -0.15] : null)
+      : [x === null ? (state.cpThemeDefaultApplied ? 0.5 : 1) : x,
+         y === null ? (circular ? (state.cpThemeDefaultApplied ? -0.18 : -0.15) : (state.cpThemeDefaultApplied ? -0.12 : 0)) : y],
     gene_label_size: optionalNumber("#gene-label-size") ?? (circular ? 5 : null),
     gene_label_color: $("#gene-label-color").value,
     species_label_size: optionalNumber("#species-label-size"),
