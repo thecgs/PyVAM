@@ -8,7 +8,8 @@ from matplotlib import collections
 from matplotlib.patches import Patch, FancyArrow
 from matplotlib.lines import Line2D
 from .parserGB import collapse_drawing_parts, feature_key, get_features
-from .config import MTColors_legends, FullName2AbbrName
+from .config import (MTColors_legends, FullName2AbbrName, CommonNamesDict_cp,
+                     CPColorGroups, cp_gene_group)
 from Bio.Seq import UndefinedSequenceError
 
 
@@ -32,7 +33,14 @@ def custom_colour_legend(colors):
     class. Differently coloured members remain individual entries.
     """
     handles, consumed = [], set()
-    for label, members in _CUSTOM_COLOUR_LEGEND_GROUPS:
+    groups = _CUSTOM_COLOUR_LEGEND_GROUPS
+    if any(name in colors for name in CommonNamesDict_cp.values()):
+        groups = tuple((label, tuple(name for name in colors if name != "source"
+                                     and cp_gene_group(name) == label))
+                       for label, color, pattern in CPColorGroups)
+    for label, members in groups:
+        if not members:
+            continue
         expected = list(members)
         # Do not invent a biological class from a mapping that only provides a
         # generic fallback; at least one member must be named explicitly.
@@ -46,6 +54,19 @@ def custom_colour_legend(colors):
         if name != "source" and name not in consumed:
             handles.append(Patch(facecolor=color, edgecolor='black', label=name))
     return handles
+
+def automatic_colour_legend(genomes):
+    """Combine defaults for cp/mitochondrial inputs without duplicate entries."""
+    handles, seen = [], set()
+    for features in genomes:
+        theme = features[0].color_theme or "MITOFISH"
+        for handle in MTColors_legends.get(theme, MTColors_legends["MITOFISH"]):
+            key = (handle.get_label(), tuple(handle.get_facecolor()))
+            if key not in seen:
+                seen.add(key)
+                handles.append(handle)
+    return handles
+
 
 def rotation_text(theta, direction=-1):
     """Return an upright tangential label rotation for a polar direction."""
@@ -113,7 +134,7 @@ def draw_circos_MT(file,
                    output=None,
                    abbr=False,
                    isfilename2species=False,
-                   colors="mitofish",
+                   colors=None,
                    radius=25,
                    show_gene_label = True,
                    gene_label_size=7,
@@ -282,8 +303,8 @@ def draw_circos_MT(file,
                 
             ax.plot([i* math.pi/180 for i in range(0, 361)], [radius]*361, c='black')
             
-    if colors == None:
-        legend_elements = MTColors_legends['MITOFISH']
+    if colors is None or isinstance(colors, str) and colors.upper() == "AUTO":
+        legend_elements = automatic_colour_legend([features])
         ncol = 1
     elif isinstance(colors, str):
         legend_elements = MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH'])
@@ -420,7 +441,7 @@ def draw_linear_MT(files,
                    output=None,
                    abbr=False,
                    isfilename2species=False,
-                   colors="mitofish",
+                   colors=None,
                    show_gene_label = True,
                    gene_label_size=5,
                    gene_label_color='black',
@@ -536,8 +557,8 @@ def draw_linear_MT(files,
         ax[-1].set_xticks([i for i in range(0 , genome_max_length+2000, 1000)], labels=[i for i in range(0 , genome_max_length+2000, 1000)], **{"fontsize":xaxisfontsize})
         ax[-1].tick_params(top=True, labeltop=True, bottom=False, labelbottom=False, direction='in', pad=-20)
     
-    if colors == None:
-        legend_elements = MTColors_legends['MITOFISH']
+    if colors is None or isinstance(colors, str) and colors.upper() == "AUTO":
+        legend_elements = automatic_colour_legend(genomes)
     elif isinstance(colors, str):
         legend_elements = MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH'])
 
@@ -616,7 +637,7 @@ def draw_linear_MT_nonproportional(files,
                                    output=None,
                                    abbr=False,
                                    isfilename2species=False,
-                                   colors="mitofish",
+                                   colors=None,
                                    gene_label_size=9, 
                                    gene_label_color="black",
                                    show_legend=True,
@@ -791,8 +812,8 @@ def draw_linear_MT_nonproportional(files,
                                      )
                               ]
         
-        if colors == None:
-            legend_elements.extend(MTColors_legends['MITOFISH'])
+        if colors is None or isinstance(colors, str) and colors.upper() == "AUTO":
+            legend_elements.extend(automatic_colour_legend(genomes))
             ncol = 12
         elif isinstance(colors, str):
             legend_elements.extend(MTColors_legends.get(colors.upper(), MTColors_legends['MITOFISH']))

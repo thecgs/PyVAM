@@ -224,6 +224,39 @@ pyvam.draw_linear_MT_interactive(files=["MK804148", "MK804158","MK804149", "MK80
 
 [View Fig. 7.html](https://html-preview.github.io/?url=https://github.com/thecgs/PyVAM/blob/main/figs/Fig.7.html)
 
+## Chloroplast GenBank input
+
+Records with `/organelle="chloroplast"` or `/organelle="plastid:chloroplast"`
+are detected automatically. PyVAM emits a `ChloroplastWarning` and uses the
+2167-entry `CommonNamesDict_cp` synonym table, with standard cp gene symbols
+and the existing tRNA aliases. Inputs without a chloroplast organelle annotation
+continue to use mitochondrial naming; gene names alone do not trigger detection.
+
+Omit `colors` (or pass `colors="AUTO"`) to use the independent `OGDRAW_CP`
+palette for chloroplast records and the existing MitoFish default for other
+records. Explicit themes and custom dictionaries take precedence. The cp colors
+follow the OGDRAW functional groups, including photosystems, ATP synthase,
+NADH dehydrogenase, RubisCO, ribosomal proteins, RNAs, and ycf genes.
+
+```python
+features = pyvam.get_features("chloroplast.gb")
+fig, ax = pyvam.draw_circos_MT("chloroplast.gb", output="chloroplast.png")
+# Explicitly choose the independent chloroplast theme:
+fig, ax = pyvam.draw_linear_MT("chloroplast.gb", colors="OGDRAW_CP")
+```
+
+The browser defaults to **Auto (genome type)**, includes cp genes in the alignment
+menu, and displays the detection notice below the plot. Select **OGDRAW_CP**
+explicitly to edit chloroplast class colors.
+
+This selection controls nomenclature and visualization. For sequence translation,
+use an appropriate `table` explicitly or `table="auto"` when CDS `/transl_table`
+annotations are available; the legacy export fallback remains mitochondrial table 2.
+
+The cp synonyms are adapted from [SynGenes](https://github.com/luanrabelo/SynGenes/tree/stable/data%20Names/cp)
+(stable commit `86ef1ff0147bdb0385f846ed08db5370f13e2d68`); its MIT notice is
+retained alongside the dictionary in `pyvam/config.py`.
+
 ## Themes
 
 ### Built-in themes:

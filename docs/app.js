@@ -17,8 +17,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pyvam import get_features, draw_circos_MT, draw_linear_MT, draw_linear_MT_nonproportional
-from pyvam.config import MTColors, CommonNamesDict, FullName2AbbrName
-from pyvam.parserGB import RotationWarning
+from pyvam.config import (MTColors, CommonNamesDict, CommonNamesDict_cp, FullName2AbbrName,
+                          CPColors_by_OGDRAW, CPColorGroups, cp_gene_group)
+from pyvam.parserGB import RotationWarning, ChloroplastWarning
 
 GENE_CLASSES = {
     "Complex I (NADH dehydrogenase)": ["ND1", "ND2", "ND3", "ND4L", "ND4", "ND5", "ND6"],
@@ -31,12 +32,20 @@ GENE_CLASSES = {
     "Other genes": ["Other genes"],
 }
 
+CP_GENE_CLASSES = {group: [name for name in CPColors_by_OGDRAW
+                           if name != "source" and cp_gene_group(name) == group]
+                   for group, color, pattern in CPColorGroups}
+
+def classes_for_theme(theme):
+    return CP_GENE_CLASSES if theme == "OGDRAW_CP" else GENE_CLASSES
+
+
 def pyvam_options():
     return json.dumps({
-        "themes": sorted(MTColors),
-        "markers": sorted(set(CommonNamesDict.values()), key=str.casefold),
+        "themes": ["AUTO"] + sorted(MTColors),
+        "markers": sorted(set(CommonNamesDict.values()) | set(CommonNamesDict_cp.values()), key=str.casefold),
         "marker_labels": {name: f"{name} = {abbr}" for name, abbr in FullName2AbbrName.items() if name.startswith("tRNA-")},
-        "class_colours": {theme: {klass: palette.get(members[0], palette.get("Other genes", "#808080"))[:7] for klass, members in GENE_CLASSES.items()} for theme, palette in MTColors.items()},
+        "class_colours": {theme: {klass: palette.get(members[0], palette.get("Other genes", "#808080"))[:7] for klass, members in classes_for_theme(theme).items() if members} for theme, palette in MTColors.items()},
     })
 
 def pyvam_describe(paths_json):
@@ -57,6 +66,7 @@ def pyvam_render(*args):
     _web_warnings = []
     with warnings.catch_warnings(record=True) as captured:
         warnings.simplefilter("always", RotationWarning)
+        warnings.simplefilter("always", ChloroplastWarning)
         result = _pyvam_render(*args)
     _web_warnings = list(dict.fromkeys(str(item.message) for item in captured))
     return result
@@ -65,15 +75,14 @@ def _pyvam_render(paths_json, view, theme, start, labels, custom_colors_json, op
     # The image comes from PyVAM's public drawing API, not browser-side SVG code.
     paths = json.loads(paths_json)
     plt.close("all")
-    colors = theme
     class_colours = json.loads(custom_colors_json)
     # Preserve each PyVAM theme exactly (including RGBA alpha) unless the user
     # explicitly changes a class colour in the web UI.
-    colors = theme
+    colors = None if theme == "AUTO" else theme
     if class_colours:
         colors = dict(MTColors[theme.upper()])
         for klass, colour in class_colours.items():
-            for gene in GENE_CLASSES[klass]: colors[gene] = colour
+            for gene in classes_for_theme(theme)[klass]: colors[gene] = colour
     web = json.loads(options_json)
     options = dict(colors=colors, start=start or None, isfilename2species=web["isfilename2species"],
                    abbr=web["abbr"], add_id=web["add_id"], remove_NCR=web["remove_ncr"], dpi=150)
@@ -136,8 +145,8 @@ function colourEditors(theme) {
 
 function populatePyvamOptions(options) {
   state.options = options;
-  el.theme.innerHTML = options.themes.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
-  el.theme.value = options.themes.includes("MITOFISH") ? "MITOFISH" : options.themes[0];
+  el.theme.innerHTML = options.themes.map((name) => `<option value="${esc(name)}">${esc(name === "AUTO" ? "Auto (genome type)" : name)}</option>`).join("");
+  el.theme.value = "AUTO";
   el.theme.disabled = false;
   el.start.innerHTML = `<option value="">GenBank origin</option>${options.markers.map((name) => `<option value="${esc(name)}">${esc(options.marker_labels[name] || name)}</option>`).join("")}`;
   el.start.disabled = false;

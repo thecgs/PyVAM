@@ -9,7 +9,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 
 from .parserGB import collapse_drawing_parts, feature_key, get_features
-from .config import MTColors_legends, MTColors, FullName2AbbrName
+from .config import MTColors_legends, MTColors, FullName2AbbrName, cp_gene_group
 
 class InteractiveMTVisualizer:
     def __init__(self):
@@ -152,7 +152,7 @@ class InteractiveMTVisualizer:
                                               output=None,
                                               abbr=False,
                                               isfilename2species=False,
-                                              colors="mitofish",
+                                              colors=None,
                                               gene_label_size=9,
                                               gene_label_color='black',
                                               show_legend=True,
@@ -254,8 +254,12 @@ class InteractiveMTVisualizer:
                 #else:
                 #    showlegend = False
                 
-                group_name = color2groups[feature.name]['group'] if feature.name in color2groups else color2groups["Other genes"]['group']
-                if group_name not in tmp_groups:
+                group_name = (cp_gene_group(feature.name, feature.type)
+                              if features[0].color_theme == "OGDRAW_CP" else
+                              (color2groups[feature.name]['group'] if feature.name in color2groups
+                               else color2groups["Other genes"]['group']))
+                legend_key = (group_name, fill_color)
+                if legend_key not in tmp_groups:
                     showlegend = True
                 else:
                     showlegend = False
@@ -388,7 +392,7 @@ class InteractiveMTVisualizer:
                             x_position += self._get_box_param(FullName2AbbrName.get(features[1:][i].name, features[1:][i].name))[2]
 
                             
-                tmp_groups.add(group_name)
+                tmp_groups.add(legend_key)
                 
         layout_dict = {#'template':'ggplot2',
             'font':  dict(size=12),
@@ -447,7 +451,7 @@ class InteractiveMTVisualizer:
                               output=None,
                               abbr=False,
                               isfilename2species=False,
-                              colors="mitofish",
+                              colors=None,
                               show_gene_label=True,
                               gene_label_size=9,
                               gene_label_color='black',
@@ -560,8 +564,12 @@ class InteractiveMTVisualizer:
                 #else:
                 #    showlegend = False
                     
-                group_name = color2groups[feature.name]['group'] if feature.name in color2groups else color2groups["Other genes"]['group']
-                if group_name not in tmp_groups:
+                group_name = (cp_gene_group(feature.name, feature.type)
+                              if features[0].color_theme == "OGDRAW_CP" else
+                              (color2groups[feature.name]['group'] if feature.name in color2groups
+                               else color2groups["Other genes"]['group']))
+                legend_key = (group_name, fill_color)
+                if legend_key not in tmp_groups:
                     showlegend = True
                 else:
                     showlegend = False
@@ -720,7 +728,7 @@ class InteractiveMTVisualizer:
                         showlegend=False,
                     ), row=row, col=1)
 		    
-                tmp_groups.add(group_name)
+                tmp_groups.add(legend_key)
                 
         for i in range(1, len(files)+1):
             fig.update_yaxes(range=[-1, 1],
@@ -772,7 +780,7 @@ class InteractiveMTVisualizer:
             
             
 def draw_linear_MT_nonproportional_interactive(files, output=None, abbr=False, isfilename2species=False,
-                                               colors="mitofish", gene_label_size=9, gene_label_color='black',
+                                               colors=None, gene_label_size=9, gene_label_color='black',
                                                show_legend=True,
                                                start=None, species_label_size=12, species_label_color='black', add_id=False, editable=False, force_reoriented=False, remove_NCR = False,
                                                default_topology="circular"):
@@ -825,7 +833,7 @@ def draw_linear_MT_nonproportional_interactive(files, output=None, abbr=False, i
 def draw_linear_MT_interactive(files, output=None,
                                abbr=False,
                                isfilename2species=False,
-                               colors="mitofish",
+                               colors=None,
                                show_gene_label=True,
                                gene_label_size=9,
                                gene_label_color='black',
