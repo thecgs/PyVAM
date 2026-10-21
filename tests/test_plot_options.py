@@ -449,3 +449,37 @@ def test_circos_returns_supplied_axes_and_empty_inputs_fail(tmp_path):
         pyvam.draw_linear_MT_interactive([])
     with pytest.raises(ValueError, match="at least one input file"):
         pyvam.draw_linear_MT_nonproportional_interactive([])
+
+
+@pytest.mark.parametrize("interactive", [False, True])
+@pytest.mark.parametrize("topology", ["circular", "linear"])
+@pytest.mark.parametrize("strand", [1, -1])
+def test_gene_order_anchor_precedes_short_origin_overlap(tmp_path, interactive, topology, strand):
+    # MK804153 has E at 6272:6338 and F at 6336:6402: a 2 bp overlap.
+    path = tmp_path / "overlap.gbk"
+    record = SeqRecord(Seq("A" * 200), id="OVERLAP", name="OVERLAP")
+    record.annotations.update(molecule_type="DNA", topology=topology)
+    record.features = [
+        SeqFeature(SimpleLocation(0, 200), type="source",
+                   qualifiers={"organism": ["Test species"]}),
+        SeqFeature(SimpleLocation(40, 106, strand=strand), type="tRNA",
+                   qualifiers={"product": ["tRNA-Glu"]}),
+        SeqFeature(SimpleLocation(104, 170, strand=-1), type="tRNA",
+                   qualifiers={"product": ["tRNA-Phe"]}),
+    ]
+    SeqIO.write(record, path, "genbank")
+    options = dict(start="tRNA-Phe", force_reoriented=True)
+    if interactive:
+        figure = pyvam.draw_linear_MT_nonproportional_interactive(path, **options)
+        labels = [a.text for a in figure.layout.annotations if a.text in {"E", "F"}]
+    else:
+        figure, axes = pyvam.draw_linear_MT_nonproportional(path, **options)
+        try:
+            labels = [t.get_text() for t in axes.texts if t.get_text() in {"E", "F"}]
+        finally:
+            plt.close(figure)
+    assert labels == ["F", "E"]
+    # Real coordinate views must retain both pieces of E, including its overlap.
+    features = pyvam.get_features(path, **options)
+    glu = [f for f in features if f.name == "tRNA-Glu"]
+    assert sorted(len(f.location) for f in glu) == [2, 64]

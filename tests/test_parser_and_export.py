@@ -841,3 +841,40 @@ def test_alias_matching_does_not_rewrite_unrelated_prefixes(tmp_path):
                  SeqFeature(SimpleLocation(0, 9, strand=1), type="CDS",
                             qualifiers={"gene": ["COX10"]})], "circular")
     assert get_features(input_path)[1].name == "COX10"
+
+
+@pytest.mark.parametrize("topology,force,expected", [
+    ("circular", False, 1), ("linear", True, 2), ("linear", False, 0),
+])
+def test_rotation_warns_about_cut_annotations_and_forced_linear_adjacency(tmp_path, topology, force, expected):
+    path = tmp_path / "overlap.gbk"
+    write_record(path, Seq("A" * 200), [
+        source_feature(200),
+        SeqFeature(SimpleLocation(40, 106, strand=1), type="tRNA",
+                   qualifiers={"product": ["tRNA-Glu"]}),
+        SeqFeature(SimpleLocation(104, 170, strand=-1), type="tRNA",
+                   qualifiers={"product": ["tRNA-Phe"]}),
+    ], topology)
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        get_features(path, start="tRNA-Phe", force_reoriented=force)
+    messages = [str(w.message) for w in captured if issubclass(w.category, parser_module.RotationWarning)]
+    assert len(messages) == expected
+    if expected:
+        assert "cuts through tRNA-Glu" in messages[-1]
+        assert "original position 105" in messages[-1]
+        assert "longest part" in messages[-1]
+    if topology == "linear" and force:
+        assert "original sequence ends become adjacent" in messages[0]
+        assert "does not establish biological circularity" in messages[0]
+
+
+def test_rotation_without_cut_or_coordinate_change_does_not_warn(tmp_path):
+    path = tmp_path / "origin.gbk"
+    write_record(path, Seq("A" * 100), [source_feature(100),
+        SeqFeature(SimpleLocation(0, 66, strand=-1), type="tRNA",
+                   qualifiers={"product": ["tRNA-Phe"]})], "linear")
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        get_features(path, start="tRNA-Phe", force_reoriented=True)
+    assert not [w for w in captured if issubclass(w.category, parser_module.RotationWarning)]

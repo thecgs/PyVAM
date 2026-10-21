@@ -12,12 +12,13 @@ const esc = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<
 function hexTextColour(hex) { const value = hex.replace("#", ""); const brightness = (Number.parseInt(value.slice(0, 2), 16) * 299 + Number.parseInt(value.slice(2, 4), 16) * 587 + Number.parseInt(value.slice(4, 6), 16) * 114) / 1000; return brightness > 160 ? "#172a32" : "#ffffff"; }
 
 const runtime = String.raw`
-import base64, json, os
+import base64, json, os, warnings
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pyvam import get_features, draw_circos_MT, draw_linear_MT, draw_linear_MT_nonproportional
 from pyvam.config import MTColors, CommonNamesDict
+from pyvam.parserGB import RotationWarning
 
 GENE_CLASSES = {
     "Complex I (NADH dehydrogenase)": ["ND1", "ND2", "ND3", "ND4L", "ND4", "ND5", "ND6"],
@@ -50,7 +51,16 @@ def pyvam_describe(paths_json):
         })
     return json.dumps(result)
 
-def pyvam_render(paths_json, view, theme, start, labels, custom_colors_json, options_json):
+def pyvam_render(*args):
+    global _web_warnings
+    _web_warnings = []
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always", RotationWarning)
+        result = _pyvam_render(*args)
+    _web_warnings = list(dict.fromkeys(str(item.message) for item in captured))
+    return result
+
+def _pyvam_render(paths_json, view, theme, start, labels, custom_colors_json, options_json):
     # The image comes from PyVAM's public drawing API, not browser-side SVG code.
     paths = json.loads(paths_json)
     plt.close("all")
@@ -365,6 +375,10 @@ async function render() {
     status("PyVAM is rendering…");
     state.pyodide.globals.set("web_paths_json", JSON.stringify(state.files)); state.pyodide.globals.set("web_view", view); state.pyodide.globals.set("web_theme", el.theme.value); state.pyodide.globals.set("web_start", start); state.pyodide.globals.set("web_labels", el.labels.checked); state.pyodide.globals.set("web_custom_colors", JSON.stringify(customColors)); state.pyodide.globals.set("web_options", JSON.stringify(webOptions()));
     state.image = await state.pyodide.runPythonAsync("pyvam_render(web_paths_json, web_view, web_theme, web_start, web_labels, web_custom_colors, web_options)");
+    const rotationWarnings = JSON.parse(await state.pyodide.runPythonAsync("json.dumps(_web_warnings)"));
+    const warningBox = $("#rotation-warnings");
+    warningBox.textContent = rotationWarnings.join("\n");
+    warningBox.hidden = rotationWarnings.length === 0;
     el.plot.classList.remove("empty");
     el.plot.classList.toggle("single-circular", view === "circular" && state.files.length <= 2);
     el.plot.innerHTML = `<img class="pyvam-figure" alt="PyVAM ${esc(view)} rendering" src="data:image/svg+xml;base64,${state.image}" />`;
@@ -449,7 +463,7 @@ function updateHexInput(input) {
 el.customColors.addEventListener("input", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) { state.classOverrides[event.target.dataset.classColour] = event.target.value; render(); } });
 el.customColors.addEventListener("change", (event) => { if (event.target.matches("[data-class-colour]") && updateHexInput(event.target)) { state.classOverrides[event.target.dataset.classColour] = event.target.value; render(); } });
 document.querySelectorAll(".hex-colour").forEach((input) => { updateHexInput(input); input.addEventListener("input", () => { if (updateHexInput(input)) render(); }); });
-el.reset.addEventListener("click", () => { state.ncbiController?.abort(); state.files = []; state.inputs = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; renderSelectedFiles(); el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; el.downloadPng.disabled = true; el.downloadPdf.disabled = true; });
+el.reset.addEventListener("click", () => { $("#rotation-warnings").hidden = true; $("#rotation-warnings").textContent = ""; state.ncbiController?.abort(); state.files = []; state.inputs = []; state.pendingFiles = []; state.pendingAccessions = []; state.image = null; el.files.value = ""; renderSelectedFiles(); el.accessions.value = ""; el.summary.textContent = "No genomes loaded."; el.stats.innerHTML = ""; el.plot.className = "plot empty"; el.plot.innerHTML = '<div><span class="empty-icon">◎</span><p>Your PyVAM maps will appear here.</p></div>'; el.title.textContent = "Waiting for GenBank files"; el.note.textContent = "Load one or more annotated genomes to begin."; el.download.disabled = true; el.downloadPng.disabled = true; el.downloadPdf.disabled = true; });
 el.download.addEventListener("click", () => { if (!state.image) return; const link = Object.assign(document.createElement("a"), { href: `data:image/svg+xml;base64,${state.image}`, download: `pyvam-${mode()}-map.svg` }); link.click(); });
 async function exportFigure(format) {
   if (!state.image) return;

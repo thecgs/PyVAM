@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib import collections
 from matplotlib.patches import Patch, FancyArrow
 from matplotlib.lines import Line2D
-from .parserGB import feature_key, get_features
+from .parserGB import collapse_drawing_parts, feature_key, get_features
 from .config import MTColors_legends, FullName2AbbrName
 from Bio.Seq import UndefinedSequenceError
 
@@ -609,18 +609,9 @@ def get_box_param(genename):
     
     
 def remove_join(features):
-    tmp = []
-    res = []
-    for feature in features:
-        if feature.join!=None:
-            key = feature_key(feature)
-            if key not in tmp:
-                res.append(feature)
-                tmp.append(key)
-        else:
-            res.append(feature)
-    return res
+    return collapse_drawing_parts(features)
     
+
 def draw_linear_MT_nonproportional(files,
                                    output=None,
                                    abbr=False,

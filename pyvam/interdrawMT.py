@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-from .parserGB import feature_key, get_features
+from .parserGB import collapse_drawing_parts, feature_key, get_features
 from .config import MTColors_legends, MTColors, FullName2AbbrName
 
 class InteractiveMTVisualizer:
@@ -145,18 +145,8 @@ class InteractiveMTVisualizer:
         return res
         
     def remove_join(self, features):
-        tmp = []
-        res = []
-        for feature in features:
-            if feature.join!=None:
-                key = feature_key(feature)
-                if key not in tmp:
-                    res.append(feature)
-                    tmp.append(key)
-            else:
-                res.append(feature)
-        return res
-    
+        return collapse_drawing_parts(features)
+
     def draw_linear_MT_nonproportional_plotly(self,
                                               files,
                                               output=None,

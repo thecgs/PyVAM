@@ -25,3 +25,5 @@ footer { padding:15px 30px; color:#78908c; border-top:1px solid var(--line); bac
 .accession-heading .example-link { flex-shrink:0; width:auto; min-height:0; margin:0; padding:4px 9px; border:1px solid #bdcbc6; border-radius:5px; background:#fff; color:#48625f; font-size:12px; font-weight:650; line-height:1.4; cursor:pointer; }
 .accession-heading .example-link:hover { border-color:#658b83; background:#f4f8f5; }
 .accession-heading .example-link:focus-visible { outline:2px solid #48625f; outline-offset:2px; }
+
+.rotation-warnings { white-space: pre-line; color: #744600; background: #fff4d6; border-left: 4px solid #b87500; padding: 12px; }

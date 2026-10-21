@@ -85,6 +85,17 @@ Common options include `colors`, `start`, `force_reoriented`, `remove_NCR`, `def
 
 For linear genomes, `start` does not rotate the sequence by default; pass `force_reoriented=True` to enable rotation explicitly. For circular genomes, `start` selects the new origin without requiring this flag.
 
+Rotation changes the coordinate origin without reversing the sequence or its strands.
+If the new origin cuts an annotation (for example, the 2 bp overlap between
+`tRNA-Glu` and the `tRNA-Phe` anchor in MK804153), PyVAM emits a
+`RotationWarning`. Coordinate-based plots retain both pieces and the overlap;
+nonproportional gene-order plots show the annotation once at its longest piece,
+so its displayed order can change. Forced rotation of a linear genome also
+warns that the original ends become adjacent in the display and a new break is
+introduced; this does not imply a physical connection or biological circularity.
+The browser app displays these warnings below the figure.
+
+
 ## Browser app
 
 Use **[PyVAM Web](https://thecgs.github.io/PyVAM/)** for browser-based multi-GenBank visualization.

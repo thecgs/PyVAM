@@ -21,6 +21,10 @@ from functools import lru_cache
 # their canonical display names remain recognized results.
 CANONICAL_GENE_NAMES = frozenset(CommonNamesDict.values())
 
+class RotationWarning(UserWarning):
+    """Rotation changes coordinates or cuts through an annotation."""
+
+
 class Feature:
     def __init__(self, name, location, type, color, join=None, mtgenome=None, accession=None, file=None, topology=None, partition=None, codon_start=1, locus_tags=(), original_type=None):
         self.name = name
@@ -70,6 +74,35 @@ def feature_key(feature):
     location = feature.join if feature.join is not None else feature.location
     return (feature.name, feature.type, feature.locus_tags, feature.original_type,
             feature.codon_start, str(location))
+
+
+def collapse_drawing_parts(features):
+    """Keep one representative per annotation for gene-order plots.
+
+    At a rotated origin a short overlap fragment must not displace the
+    annotation's main body (or the requested anchor) in the gene order.
+    Coordinate-based renderers still retain every part.
+    """
+    if not features:
+        return []
+    genome_length = len(features[0].mtgenome)
+    selected = {}
+    result = []
+    for feature in features:
+        if feature.join is None:
+            result.append(feature)
+            continue
+        key = feature_key(feature)
+        if key not in selected:
+            selected[key] = feature
+            result.append(feature)
+        parts = feature.join.parts
+        wraps = (min(part.start for part in parts) == 0
+                 and max(part.end for part in parts) == genome_length)
+        if wraps and len(feature.location) > len(selected[key].location):
+            selected[key] = feature
+    result = [selected[feature_key(f)] if f.join is not None else f for f in result]
+    return result[:1] + sorted(result[1:], key=lambda f: f.location.start)
 
 
 def is_repeat(features, location, name=None, annotation=None):
@@ -242,6 +275,29 @@ def reinit_features(features, start = "tRNA-Phe", force_reoriented=False):
         return features
         
     genome_length = len(features[0].mtgenome)
+    label = features[0].accession or features[0].file or features[0].name
+    if value and features[0].topology == "linear":
+        warnings.warn(
+            f"{label}: forced rotation of a linear genome at {start} (original "
+            f"position {int(value) + 1}) changes coordinates and displayed adjacency: "
+            "the original sequence ends become adjacent and a new break is introduced. "
+            "This does not establish biological circularity or a physical connection.",
+            RotationWarning, stacklevel=2,
+        )
+    cut_names = sorted({
+        feature.name for feature in features[1:] if feature.type != "Gap"
+        and any(part.start < value < part.end for part in
+                (feature.join if feature.join is not None else feature.location).parts)
+    })
+    if cut_names:
+        warnings.warn(
+            f"{label}: rotation at {start} (original position {int(value) + 1}) "
+            f"cuts through {', '.join(cut_names)}. Coordinate-based plots retain "
+            "the split parts and real overlaps; gene-order plots show each annotation "
+            "once at its longest part, which can change its displayed order. "
+            "The sequence and strand orientation are preserved.",
+            RotationWarning, stacklevel=2,
+        )
 
     def rotate_part(part):
         if part.end <= value:
